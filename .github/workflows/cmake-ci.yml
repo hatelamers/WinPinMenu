@@ -22,6 +22,7 @@ on:
 
 jobs:
   build:
+    name: Build
     strategy:
       matrix:
         kind: ['x64-Release', 'x86-Release', 'ARM64-Release']
@@ -30,12 +31,10 @@ jobs:
             config: Release
             arch: x64
             archalias: x64
-        include:
           - kind: x86-Release
             config: Release
             arch: x86
             archalias: Win32
-        include:
           - kind: ARM64-Release
             config: Release
             arch: ARM64
