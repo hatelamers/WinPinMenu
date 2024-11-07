@@ -43,3 +43,5 @@ jobs:
             distr/*.exe
             distr/*.zip
             distr/*.sha256
+      env:
+        GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
