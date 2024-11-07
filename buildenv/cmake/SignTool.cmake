@@ -8,8 +8,8 @@ if(SIGNTOOL_COMMAND)
     if(SIGNER_PASS)
         set(SIGNTOOL_PASS_ARG "/p" "${SIGNER_PASS}")
     endif()
-    message(STATUS "Applying ${SIGNTOOL_OBJECT_ARG} to ${TARGET}")
     if(SIGNTOOL_OBJECT_ARG)
+        message(STATUS "Applying ${SIGNTOOL_OBJECT_ARG} to ${TARGET}")
         execute_process(
             COMMAND "${SIGNTOOL_COMMAND}"
                 sign
