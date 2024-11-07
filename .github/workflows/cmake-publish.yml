@@ -1,0 +1,45 @@
+name: Publish Main Release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+
+  release:
+    name: Release
+    strategy:
+      matrix:
+        kind: ['x64-Release', 'x86-Release', 'ARM64-Release']
+        include:
+          - kind: x64-Release
+            config: Release
+            arch: x64
+            archalias: x64
+          - kind: x86-Release
+            config: Release
+            arch: x86
+            archalias: Win32
+          - kind: ARM64-Release
+            config: Release
+            arch: ARM64
+            archalias: ARM64
+
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup Developer Command Prompt
+      uses: ilammy/msvc-dev-cmd@v1
+    - name: Build projects with CMake
+      run: |
+        cmake -Sbuildenv -Bbuild\Cmake-${{ matrix.config }}-${{ matrix.arch }} -DCMAKE_BUILD_TYPE=${{ matrix.config }} -T host=x64 -A ${{ matrix.archalias }}
+        cmake --build build\Cmake-${{ matrix.config }}-${{ matrix.arch }} --config ${{ matrix.config }} --target WinPinMenu-package-inst
+    - name: Publish to GitHub
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+            distr/*.exe
+            distr/*.zip
+            distr/*.sha256
