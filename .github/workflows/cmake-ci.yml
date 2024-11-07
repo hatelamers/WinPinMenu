@@ -49,4 +49,5 @@ jobs:
       uses: ilammy/msvc-dev-cmd@v1
     - name: Build projects with CMake
       run: |
-        cmake -Sbuildenv -Bbuild\Cmake-${{ matrix.config }}-${{ matrix.arch }}  -DCMAKE_BUILD_TYPE=${{ matrix.config }}  -T host=x64 -A ${{ matrix.archalias }} 
+        cmake -Sbuildenv -Bbuild\Cmake-${{ matrix.config }}-${{ matrix.arch }} -DCMAKE_BUILD_TYPE=${{ matrix.config }} -T host=x64 -A ${{ matrix.archalias }}
+        cmake --build build\Cmake-${{ matrix.config }}-${{ matrix.arch }} --config ${{ matrix.config }}
