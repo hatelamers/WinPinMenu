@@ -1,0 +1,53 @@
+# This workflow will build a .NET project
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-net
+
+name: CMake Build And Test
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+  pull_request:
+    branches: [ "main", "develop" ]
+  workflow_dispatch:
+    inputs:
+      logLevel:
+        description: 'Log level'
+        required: true
+        default: 'warning'
+        type: choice
+        options:
+        - info
+        - warning
+        - debug
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        kind: ['x64-Release', 'x86-Release', 'ARM64-Release']
+        include:
+          - kind: x64-Release
+            config: Release
+            arch: x64
+            archalias: x64
+        include:
+          - kind: x86-Release
+            config: Release
+            arch: x86
+            archalias: Win32
+        include:
+          - kind: ARM64-Release
+            config: Release
+            arch: ARM64
+            archalias: ARM64
+
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup Developer Command Prompt
+      uses: ilammy/msvc-dev-cmd@v1
+    - name: Build projects with CMake
+      run: |
+        cmake -Sbuildenv -Bbuild\Cmake-${{ matrix.config }}-${{ matrix.arch }}  -DCMAKE_BUILD_TYPE=${{ matrix.config }}  -T host=x64 -A ${{ matrix.archalias }} 
