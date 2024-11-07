@@ -3,9 +3,10 @@ name: CMake Build And Test
 on:
   push:
     branches: [ "main", "develop" ]
+    paths: [ "src/app/**", "buildenv/**" ]
   pull_request:
     branches: [ "main", "develop" ]
-  paths: [ "src/app/**", "buildenv/**" ]
+    paths: [ "src/app/**", "buildenv/**" ]
   workflow_dispatch:
     inputs:
       logLevel:
