@@ -27,7 +27,7 @@ You can pin as many instances of WinPinMenu to a taskbar as you wish (and there 
 1. Open shortcut properties (right mouse button)
 1. Put the cursor in the "Target" field at the very end
 1. Press space bar
-1. Enter a folder path or ID to be rendered in the popup menu (for possible formats s. [Folder Identifiers] below)
+1. Enter a folder path or ID to be rendered in the popup menu (for possible formats s. [Folder Identifiers](#folder-identifiers) below)
 1. Optionally chage the icon of the shortcut (will be visible in the taskbar)
 1. Apply the changes
 1. Right click on the shortcut file an select "Pin To The Taskbar"
@@ -42,6 +42,18 @@ Generally virtually anything that Windos Explorer would accept in its address ba
 - Shell known folder CSIDL like `shell:::{323CA680-C24D-4099-B94D-446DD2D7249E}` (for comprehensive list s. https://www.elevenforum.com/t/list-of-windows-11-clsid-key-guid-shortcuts.1075/)
 
 For all formats applies: if an identifier containes spaces it must be enclosed in double quotes when used as WinPinMenu parameter.
+
+### Extended Actions
+Most items in the popup menus can perform extended actions available via context menu (right mouse click), even more of them are accessible via right mouse click when shift key is pushed.
+
+*Richt Click - Control Panel - `shell:ControlPanelFolder` (German Windows)*
+
+![Popup Menu - Control Panel](doc/screenshots/context-menu-control-panel.png)
+
+*Richt Click + Shift - Links - `shell:Links` (German Windows)*
+
+![Popup Menu - Links](doc/screenshots/context-menu-ext-links.png)
+
 
 ### Limitations
 Due to the nature of Windows menu API the application would display max. 15 levels of nested folders and up to 4095 items in each folder - if you call this a limitation.
