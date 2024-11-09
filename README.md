@@ -1,4 +1,7 @@
 # WinPinMenu
+![OS](https://img.shields.io/badge/Win-8%2C10%2C11-blue?logo=windows10) ![License](https://img.shields.io/badge/License-GPL%20v3-green) ![Latest](https://img.shields.io/github/v/release/hatelamers/WinPinMenu) ![Downloads](https://img.shields.io/github/downloads/hatelamers/WinPinMenu/total
+)
+
 diVISION Pinnable Taskbar Menu For Windows
 
 ![logo](src/visuals/app.png)
@@ -57,3 +60,22 @@ Most items in the popup menus can perform extended actions available via context
 
 ### Limitations
 Due to the nature of Windows menu API the application would display max. 15 levels of nested folders and up to 4095 items in each folder - if you call this a limitation.
+
+## Building The App
+To build WinPinMenu yourself you will need the following
+
+- Windows Platform SDK
+- Visual Studion (min. 2022)
+- Platform Tools for C/C++ (available with any edition of Visual Studio)
+- MFC/ATL Components (available with any edition of Visual Studio)
+
+After cloning the repository you can either open the solution `buildenv/WinPinMenu.sln` in Visual Studio and hit "Build Solution" or - if you prefer command line - open developer command prompt in the root directory of the repo and run these 2 lines (make sure you are using `Visual Studio 17 2022` CMake generator):
+
+```sh
+cmake -Sbuildenv -Bbuild\Cmake-Debug-x64 -DCMAKE_BUILD_TYPE=Debug
+cmake --build build\Cmake-Debug-x64 --config Debug
+```
+Replace "Debug" with "Release" in the above commands when building release version.
+
+## Contributing
+All contributions to development and error fixing are welcome. Please always use `develop` branch for forks and pull requests, `main` is reserved for stable releases and critical vulnarability fixes only.
