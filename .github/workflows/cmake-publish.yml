@@ -30,12 +30,20 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    - name: Download Certificate
+      run: |
+        echo $env:CODESIGN_CERT > "$env:TEMP\signcert.txt"
+        certutil -decode -f "$env:TEMP\signcert.txt" "$env:TEMP\signcert.pfx"
+      env:
+        CODESIGN_CERT: ${{ secrets.CODESIGN_CERT }}
     - name: Setup Developer Command Prompt
       uses: ilammy/msvc-dev-cmd@v1
     - name: Build projects with CMake
       run: |
-        cmake -Sbuildenv -Bbuild\Cmake-${{ matrix.config }}-${{ matrix.arch }} -DCMAKE_BUILD_TYPE=${{ matrix.config }} -T host=x64 -A ${{ matrix.archalias }}
+        cmake -Sbuildenv -Bbuild\Cmake-${{ matrix.config }}-${{ matrix.arch }} -DCMAKE_BUILD_TYPE=${{ matrix.config }} -DSIGNER_CERT:STRING="$env:TEMP\signcert.pfx" -DSIGNER_PASS:STRING=$env:CODESIGN_PW -T host=x64 -A ${{ matrix.archalias }}
         cmake --build build\Cmake-${{ matrix.config }}-${{ matrix.arch }} --config ${{ matrix.config }} --target WinPinMenu-package-inst
+      env:
+        CODESIGN_PW: ${{ secrets.CODESIGN_PW }}
     - name: Publish to GitHub
       uses: softprops/action-gh-release@v1
       with:
@@ -45,3 +53,9 @@ jobs:
             distr/*.sha256
       env:
         GITHUB_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+    - name: Cleanup
+      if: always()
+      continue-on-error: true
+      run: |
+        del /q "$env:TEMP\signcert.txt" 2>nul
+        del /q "$env:TEMP\signcert.pfx" 2>nul
