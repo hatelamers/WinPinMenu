@@ -9,11 +9,11 @@ diVISION Pinnable Taskbar Menu For Windows
 WinPinMenu is a small portable application designed to replace functionality of Windows taskbar that was removed in recent releases of Windows 11: custom toolbars and quick launch. While created for this specific purpose, WinPinMenu very well can be used in any version of Windows (from 7 onwards). It allows users to pin popup menus to the taskbar displaying contents of arbitrary folders and launch items from there. It is extremely lightweight and runs only to display the menu, thus consumes no resources in the background, it neither requires shell extensions nor patching of Windows components.
 
 ## Screenshots
-*Control Panel - `shell:ControlPanelFolder` (German Windows)*
+*Control Panel - `shell:ControlPanelFolder`*
 
-![Popup Menu - Control Panel](doc/screenshots/menu-open-contol-panel.png)
+![Popup Menu - Control Panel](doc/screenshots/menu-open-contol-panel-en.png)
 
-*Links - `shell:Links` (German Windows)*
+*Links - `shell:Links`*
 
 ![Popup Menu - Links](doc/screenshots/menu-open-links.png)
 
@@ -49,13 +49,13 @@ For all formats applies: if an identifier containes spaces it must be enclosed i
 ### Extended Actions
 Most items in the popup menus can perform extended actions available via context menu (right mouse click), even more of them are accessible via right mouse click when shift key is pushed.
 
-*Richt Click - Control Panel - `shell:ControlPanelFolder` (German Windows)*
+*Richt Click - Control Panel - `shell:ControlPanelFolder`*
 
-![Popup Menu - Control Panel](doc/screenshots/context-menu-control-panel.png)
+![Popup Menu - Control Panel](doc/screenshots/context-menu-control-panel-en.png)
 
-*Richt Click + Shift - Links - `shell:Links` (German Windows)*
+*Richt Click + Shift - Links - `shell:Links`*
 
-![Popup Menu - Links](doc/screenshots/context-menu-ext-links.png)
+![Popup Menu - Links](doc/screenshots/context-menu-ext-links-en.png)
 
 
 ### Limitations
