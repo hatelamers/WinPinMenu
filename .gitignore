@@ -5,6 +5,7 @@
 
 /build
 **/LocalBuild.*
+/test/data
 
 # User-specific files
 *.rsuser
