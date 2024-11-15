@@ -128,8 +128,14 @@ LRESULT CMainFrame::OnFileExit(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCt
 LRESULT CMainFrame::OnAppAbout(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 {
 	CAboutDlg dlg;
-	dlg.DoModal();
-	TriggerActionPopup();
+	if (IDRETRY == dlg.DoModal())
+	{
+		TriggerActionPopup();
+	}
+	else
+	{
+		PostMessage(WM_CLOSE);
+	}
 	return 0;
 }
 
@@ -228,51 +234,59 @@ INT CMainFrame::TriggerActionPopup()
 
 POINT CMainFrame::CalculatePopupPosision()
 {
-	POINT result{ 0,0 };
+	ATLTRACE(__FUNCTION__ _T(" START\n"));
+	POINT result{ -1,-1 };
+	POINT cursorPos{ 0,0 };
+	if (::GetCursorPos(&cursorPos))
+	{
+		result.x = cursorPos.x;
+		result.y = cursorPos.y;
+	}
+
 	CTaskbarAutomation tba;
-	tba.ForEveryButton([this,&result](const CComPtr<IUIAutomationElement>& button, int)
+	auto hrButtons = tba.ForEveryButton([this,&result,&cursorPos](const CComPtr<IUIAutomationElement>& button, int /*tbIndex*/, int /*btnIndex*/)
 		{
-			CComBSTR bstrName;
-			auto hr = button->get_CurrentName(&bstrName);
-			//ATLTRACE(_T("Button[%d].Name=%s\n"), index, (LPCOLESTR)bstrName);
-			if (SUCCEEDED(hr))
+			RECT rc{ 0,0,0,0 };
+			if (SUCCEEDED(button->get_CachedBoundingRectangle(&rc)))
 			{
-				CString strName(bstrName);
-				CString strTitle;
-				GetWindowText(strTitle);
-				if (0 == strName.Find(strTitle))
+				auto hasFocus = FALSE;
+				button->get_CurrentHasKeyboardFocus(&hasFocus);
+				if (!hasFocus)
 				{
-					RECT rc{ 0,0,0,0 };
-					if (SUCCEEDED(button->get_CurrentBoundingRectangle(&rc)))
-					{
-						result.x = rc.left;
-						result.y = rc.top;
-					}
+					hasFocus = (cursorPos.x >= rc.left && cursorPos.x <= rc.right && cursorPos.y >= rc.top && cursorPos.y <= rc.bottom);
+				}
+				ATLTRACE(__FUNCTION__ _T(" taskbar button at x=%d y=%d, hasFocus=%d\n"), rc.left, rc.top, hasFocus);
+				if (hasFocus)
+				{
+					result.x = 10 > rc.left ? rc.right : rc.left;
+					result.y = 10 > rc.top ? rc.bottom + 2 : rc.top - 2;
 					return false;
 				}
 			}
 			return true;
 		});
 
-	if (0 == result.x && 0 == result.y)
+	if (S_FALSE != hrButtons)
 	{
-		if (!::GetCursorPos(&result))
+		if (-1 == result.x)
 		{
 			result.x = 100;
 			result.y = -1;
 		}
+
 		auto hTaskBar = ::FindWindow(_T("Shell_TrayWnd"), NULL);
 		if (hTaskBar)
 		{
 			RECT rc{ 0,0,0,0 };
 			if (::GetWindowRect(hTaskBar, &rc) &&
 				(0 > result.y
-					|| (result.x >= rc.left && result.x <= rc.right && result.y >= rc.top && result.y <= rc.bottom)))
+					|| (cursorPos.x >= rc.left && cursorPos.x <= rc.right && cursorPos.y >= rc.top && cursorPos.y <= rc.bottom)))
 			{
-				result.y = rc.top;
+				result.y = 10 > rc.top ? rc.bottom + 2 : rc.top - 2;
 			}
 		}
 	}
+	ATLTRACE(__FUNCTION__ _T(" END\n"));
 	return result;
 }
 
