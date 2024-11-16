@@ -9,6 +9,7 @@
 #include "MainFrm.h"
 
 CAppModule _Module;
+CUxTheme uxTheme;
 
 class CWinPinMenuThreadManager
 {
@@ -36,13 +37,24 @@ public:
 		_RunData* pData = (_RunData*)lpData;
 		CMainFrame wndFrame;
 
-		RECT rc{ -1000, -1000, -950, -950 };
-		if(wndFrame.CreateEx(NULL, &rc, WS_ICONIC) == NULL)
+		RECT rc{ -1000, -1000, 0, 0 };
+		POINT pt{ 0,0 };
+		if (::GetCursorPos(&pt))
+		{
+			rc.left = pt.x;
+			rc.top = pt.y;
+		}
+		if(wndFrame.CreateEx(NULL, &rc, WS_POPUP) == NULL)
 		{
 			ATLTRACE(_T("Frame window creation failed!\n"));
 			return 0;
 		}
 
+		uxTheme.AllowDarkModeForWindow(wndFrame, true);
+		if (uxTheme.ShouldAppsUseDarkMode())
+		{
+			uxTheme.SwitchWindowDarkMode(wndFrame, true);
+		}
 		wndFrame.ShowWindow(pData->nCmdShow);
 		delete pData;
 
@@ -135,13 +147,13 @@ public:
 
 int WINAPI _tWinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPTSTR lpstrCmdLine, int nCmdShow)
 {
-	CUxTheme uxTheme;
-	uxTheme.SetPreferredAppMode(PreferredAppMode::AllowDark);
+	// TODO: intrusive dark mode doesn't support owner-drawn menus, we need to paint all ourselves
+	//uxTheme.SetPreferredAppMode(PreferredAppMode::AllowDark);
 
 	HRESULT hRes = ::CoInitialize(NULL);
 	ATLASSERT(SUCCEEDED(hRes));
 
-	AtlInitCommonControls(ICC_BAR_CLASSES);	// add flags to support other controls
+	AtlInitCommonControls(ICC_STANDARD_CLASSES | ICC_BAR_CLASSES);	// add flags to support other controls
 
 	hRes = _Module.Init(NULL, hInstance);
 	ATLASSERT(SUCCEEDED(hRes));

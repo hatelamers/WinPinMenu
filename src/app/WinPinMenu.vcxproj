@@ -98,31 +98,37 @@
     <LinkIncremental>true</LinkIncremental>
     <OutDir>..\..\build\$(Configuration)-$(PlatformShortName)\</OutDir>
     <IntDir>..\..\build\$(Configuration)-$(PlatformShortName)\</IntDir>
+    <GenerateManifest>false</GenerateManifest>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
     <LinkIncremental>true</LinkIncremental>
     <OutDir>..\..\build\$(Configuration)-$(PlatformShortName)\</OutDir>
     <IntDir>..\..\build\$(Configuration)-$(PlatformShortName)\</IntDir>
+    <GenerateManifest>false</GenerateManifest>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
     <OutDir>..\..\build\$(Configuration)-$(PlatformShortName)\</OutDir>
     <IntDir>..\..\build\$(Configuration)-$(PlatformShortName)\</IntDir>
+    <GenerateManifest>false</GenerateManifest>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>..\..\build\$(Configuration)-$(PlatformShortName)\</OutDir>
     <IntDir>..\..\build\$(Configuration)-$(PlatformShortName)\</IntDir>
+    <GenerateManifest>false</GenerateManifest>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>..\..\build\$(Configuration)-$(PlatformShortName)\</OutDir>
     <IntDir>..\..\build\$(Configuration)-$(PlatformShortName)\</IntDir>
+    <GenerateManifest>false</GenerateManifest>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>..\..\build\$(Configuration)-$(PlatformShortName)\</OutDir>
     <IntDir>..\..\build\$(Configuration)-$(PlatformShortName)\</IntDir>
+    <GenerateManifest>false</GenerateManifest>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -344,6 +350,9 @@
   <ItemGroup>
     <None Include="packages.config" />
     <None Include="res\WinPinMenu.rc2" />
+  </ItemGroup>
+  <ItemGroup>
+    <Manifest Include="res\app.manifest" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

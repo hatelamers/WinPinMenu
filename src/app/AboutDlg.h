@@ -7,6 +7,7 @@
 
 class CAboutDlg
 	: public CDialogImpl<CAboutDlg>
+	, public CThemeImpl<CAboutDlg>
 	, public CWinDataExchange<CAboutDlg>
 {
 public:
@@ -17,6 +18,7 @@ public:
 		COMMAND_ID_HANDLER(IDOK, OnCloseCmd)
 		COMMAND_ID_HANDLER(IDRETRY, OnCloseCmd)
 		COMMAND_ID_HANDLER(IDCANCEL, OnCloseCmd)
+		CHAIN_MSG_MAP(CThemeImpl<CAboutDlg>)
 	END_MSG_MAP()
 
 	BEGIN_DDX_MAP(CAboutDlg)
