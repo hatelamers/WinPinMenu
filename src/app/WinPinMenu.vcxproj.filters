@@ -94,4 +94,9 @@
       <Filter>Resource Files</Filter>
     </None>
   </ItemGroup>
+  <ItemGroup>
+    <Manifest Include="res\app.manifest">
+      <Filter>Resource Files</Filter>
+    </Manifest>
+  </ItemGroup>
 </Project>

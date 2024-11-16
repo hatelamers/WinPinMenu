@@ -10,6 +10,14 @@
 
 LRESULT CAboutDlg::OnInitDialog(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/)
 {
+    uxTheme.AllowDarkModeForWindow(m_hWnd, true);
+    if (uxTheme.ShouldAppsUseDarkMode())
+    {
+        uxTheme.SwitchWindowDarkMode(m_hWnd, true);
+    }
+    SetThemeExtendedStyle(THEME_EX_THEMECLIENTEDGE);
+    //EnableThemeDialogTexture(ETDT_ENABLETAB);
+
     DoDataExchange(FALSE);
     //m_lnkLicense.SetHyperLinkExtendedStyle(HLINK_COMMANDBUTTON, HLINK_COMMANDBUTTON);
     if (m_fvi.Open())

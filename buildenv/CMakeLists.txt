@@ -13,8 +13,8 @@ endif()
 
 include("${CMAKE_CURRENT_LIST_DIR}/LocalBuild.cmake" OPTIONAL)
 
-include("${CMAKE_CURRENT_LIST_DIR}/Product.cmake")
 file(READ "${CMAKE_CURRENT_LIST_DIR}/buildnumber.txt" BUILD_NUMBER)
+include("${CMAKE_CURRENT_LIST_DIR}/Product.cmake")
 if(NOT ${BUILD_NUMBER})
     set(BUILD_NUMBER 1)
 endif()
@@ -43,6 +43,7 @@ set(MAIN_TARGET_SOURCE_DIR "${WORKSPACE_ROOT}/src/app")
 set(MAIN_TARGET_RESOURCE_DIR "${MAIN_TARGET_SOURCE_DIR}/res")
 
 configure_file("${MAIN_TARGET_SOURCE_DIR}/productmeta.h.in" "${MAIN_TARGET_SOURCE_DIR}/productmeta.h")
+configure_file("${MAIN_TARGET_SOURCE_DIR}/app.manifest.in" "${MAIN_TARGET_RESOURCE_DIR}/app.manifest")
 
 add_custom_target(${MAIN_TARGET_NAME} ALL)
 

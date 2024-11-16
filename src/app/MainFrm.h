@@ -11,7 +11,8 @@
 #define MNUPOS_APP_EXIT 0
 
 class CMainFrame : 
-	public CFrameWindowImpl<CMainFrame>, 
+	public CFrameWindowImpl<CMainFrame>,
+	public CThemeImpl<CMainFrame>,
 	public CUpdateUI<CMainFrame>,
 	public CMessageFilter, public CIdleHandler, public CShellBrowseMenu::ShellMenuController
 {
@@ -49,6 +50,7 @@ public:
 		MESSAGE_HANDLER(GetDisplayPopupMessage(), OnDisplayPopup)
 		COMMAND_ID_HANDLER(ID_APP_EXIT, OnFileExit)
 		COMMAND_ID_HANDLER(ID_APP_ABOUT, OnAppAbout)
+		CHAIN_MSG_MAP(CThemeImpl<CMainFrame>)
 		CHAIN_MSG_MAP_MEMBER(m_shellMenu)
 		MESSAGE_HANDLER(WM_MENUSELECT, OnMenuSelect)
 		CHAIN_MSG_MAP(CUpdateUI<CMainFrame>)
@@ -80,7 +82,7 @@ private:
 public:
 	bool m_hasChildren{ false };
 private:
-	CMenu m_mnuMain;
+	CMenuHandle m_mnuMain;
 	CShellBrowseMenu m_shellMenu;
 	CString m_strActionSource;
 	CString m_strSourceTitle;

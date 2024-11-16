@@ -30,6 +30,14 @@ IDR_MAINFRAME           ICON                    "res\\app.ico"
 
 IDI_APP_RUNNING         ICON                    "res\\app_running.ico"
 
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// RT_MANIFEST
+//
+
+1                       RT_MANIFEST             "res\\app.manifest"
+
 #endif    // Neutral (Default) resources
 /////////////////////////////////////////////////////////////////////////////
 
@@ -93,8 +101,8 @@ STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTERMOUSE | WS_POPUP | WS_CAPTION | WS_S
 CAPTION "About"
 FONT 9, "Segoe UI", 0, 0, 0x0
 BEGIN
-    DEFPUSHBUTTON   "O&K",IDOK,185,113,50,14
-    PUSHBUTTON      "&Back To Menu",IDRETRY,131,113,50,14
+    DEFPUSHBUTTON   "O&K",IDOK,179,106,50,14
+    PUSHBUTTON      "&Back To Menu",IDRETRY,122,106,50,14
     ICON            IDR_MAINFRAME,IDC_STATIC,12,15,20,20
     GROUPBOX        "",IDC_STATIC,7,7,228,120
     LTEXT           "Product Name",IDC_TXT_PRODUCTNAME,41,15,125,18
@@ -134,6 +142,7 @@ BEGIN
         HORZGUIDE, 15
         HORZGUIDE, 39
         HORZGUIDE, 68
+        HORZGUIDE, 120
     END
 END
 #endif    // APSTUDIO_INVOKED
