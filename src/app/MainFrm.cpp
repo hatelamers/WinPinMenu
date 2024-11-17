@@ -146,7 +146,11 @@ bool CMainFrame::ParseCommandLine()
 	for (auto i = 1; argv && i < argc; i++)
 	{
 		CString p(argv[i]);
-		if (_T("/t") == p && 0 == m_strSourceTitle.GetLength())
+		if (_T("/h") == p)
+		{
+			SetWindowLongPtr(GWL_EXSTYLE, WS_EX_TOOLWINDOW);
+		}
+		else if (_T("/t") == p && 0 == m_strSourceTitle.GetLength())
 		{
 			expectToken = 1;
 		}
