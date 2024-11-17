@@ -79,8 +79,6 @@ private:
 	INT TriggerActionPopup();
 	POINT CalculatePopupPosision();
 
-public:
-	bool m_hasChildren{ false };
 private:
 	CMenuHandle m_mnuMain;
 	CShellBrowseMenu m_shellMenu;
