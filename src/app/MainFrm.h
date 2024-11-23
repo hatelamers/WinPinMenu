@@ -12,7 +12,7 @@
 
 class CMainFrame : 
 	public CFrameWindowImpl<CMainFrame>,
-	public CThemeImpl<CMainFrame>,
+	public CUxModeWindow<CMainFrame>,
 	public CUpdateUI<CMainFrame>,
 	public CMessageFilter, public CIdleHandler, public CShellBrowseMenu::ShellMenuController
 {
@@ -44,13 +44,13 @@ public:
 	END_UPDATE_UI_MAP()
 
 	BEGIN_MSG_MAP(CMainFrame)
+		CHAIN_MSG_MAP(CUxModeWindow<CMainFrame>)
 		MESSAGE_HANDLER(WM_CREATE, OnCreate)
 		MESSAGE_HANDLER(WM_DESTROY, OnDestroy)
 		MESSAGE_HANDLER(WM_MENUCOMMAND, OnMenuCommand)
 		MESSAGE_HANDLER(GetDisplayPopupMessage(), OnDisplayPopup)
 		COMMAND_ID_HANDLER(ID_APP_EXIT, OnFileExit)
 		COMMAND_ID_HANDLER(ID_APP_ABOUT, OnAppAbout)
-		CHAIN_MSG_MAP(CThemeImpl<CMainFrame>)
 		CHAIN_MSG_MAP_MEMBER(m_shellMenu)
 		MESSAGE_HANDLER(WM_MENUSELECT, OnMenuSelect)
 		CHAIN_MSG_MAP(CUpdateUI<CMainFrame>)

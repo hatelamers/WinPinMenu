@@ -5,21 +5,15 @@
 #include "stdafx.h"
 #include "resource.h"
 #include "productmeta.h"
+#include "Draw.h"
 
 #include "aboutdlg.h"
 
 LRESULT CAboutDlg::OnInitDialog(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/)
 {
-    uxTheme.AllowDarkModeForWindow(m_hWnd, true);
-    if (uxTheme.ShouldAppsUseDarkMode())
-    {
-        uxTheme.SwitchWindowDarkMode(m_hWnd, true);
-    }
-    SetThemeExtendedStyle(THEME_EX_THEMECLIENTEDGE);
-    //EnableThemeDialogTexture(ETDT_ENABLETAB);
+    ATLTRACE(_T(__FUNCTION__) _T("\n"));
 
     DoDataExchange(FALSE);
-    //m_lnkLicense.SetHyperLinkExtendedStyle(HLINK_COMMANDBUTTON, HLINK_COMMANDBUTTON);
     if (m_fvi.Open())
     {
         m_fvi.SetInfoDlgItemText(m_hWnd, IDC_TXT_PRODUCTNAME, SFI_PRODUCTNAME);
@@ -29,10 +23,6 @@ LRESULT CAboutDlg::OnInitDialog(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lPara
         m_fvi.SetInfoDlgItemText(m_hWnd, IDC_TXT_FILEVERSION, SFI_FILEVERSION);
         m_fvi.SetInfoDlgItemText(m_hWnd, IDC_TXT_COMPANYNAME, SFI_COMPANYNAME);
 
-        //LPTSTR lpValue(NULL);
-        //UINT uLen(0);
-        //if (m_fvi.GetStringFileInfo(SFI_LEGALTRADEMARKS, lpValue, &uLen))
-        //    m_lnkLicense.SetToolTipText(lpValue);
     }
     m_lnkLicense.SetHyperLink(PRODUCT_LICENSE_URL);
 
@@ -41,11 +31,42 @@ LRESULT CAboutDlg::OnInitDialog(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lPara
 #else
     m_lnkRelNotes.ShowWindow(SW_HIDE);
 #endif
+    m_clrLink = m_lnkLicense.m_clrLink;
+    m_clrVisited = m_lnkLicense.m_clrVisited;
+
+    UpdateColors();
     return TRUE;
 }
+
+LRESULT CAboutDlg::OnThemeChange(UINT, WPARAM, LPARAM, BOOL& bHandled)
+{
+    bHandled = FALSE;
+    UpdateColors();
+    return 0L;
+}
+
 
 LRESULT CAboutDlg::OnCloseCmd(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 {
 	EndDialog(wID);
 	return 0;
+}
+
+void CAboutDlg::UpdateColors()
+{
+    auto clrLink = m_clrLink;
+    auto clrVisited = m_clrVisited;
+    if (IsInDarkMode())
+    {
+        clrLink = HLS_TRANSFORM(clrLink, 35, 0);
+        clrVisited = HLS_TRANSFORM(clrVisited, 30, 0);
+    }
+    ApplyLinkColor(m_lnkLicense, clrLink, clrVisited);
+    ApplyLinkColor(m_lnkRelNotes, clrLink, clrVisited);
+}
+
+void CAboutDlg::ApplyLinkColor(CHyperLink& link, COLORREF clrLink, COLORREF clrVisited) const
+{
+    link.m_clrLink = clrLink;
+    link.m_clrVisited = clrVisited;
 }

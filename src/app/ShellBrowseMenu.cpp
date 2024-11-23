@@ -1,8 +1,17 @@
 #include "stdafx.h"
 
 #include "resource.h"
+
+#include "Draw.h"
 #include "ShellMgr.h"
 #include "ShellBrowseMenu.h"
+
+CShellBrowseMenu::CShellBrowseMenu(const ShellMenuController* controller)
+	: m_controller(controller), m_isRendered(false), m_isCtxMenuShowing(false)
+{
+	LoadIconImages();
+	UpdateMetrics();
+}
 
 HRESULT CShellBrowseMenu::Rebuild()
 {
@@ -48,6 +57,13 @@ BOOL CShellBrowseMenu::InvokeWithSelection(LPCTSTR strVerb) const
 	return FALSE;
 }
 
+LRESULT CShellBrowseMenu::OnThemeChange(UINT, WPARAM, LPARAM, BOOL& bHandled)
+{
+	bHandled = FALSE;
+	UpdateMetrics(true);
+	return 0L;
+}
+
 LRESULT CShellBrowseMenu::OnInitMenuPopup(UINT, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
 {
 	bHandled = FALSE;
@@ -65,6 +81,9 @@ LRESULT CShellBrowseMenu::OnInitMenuPopup(UINT, WPARAM wParam, LPARAM lParam, BO
 			ATLTRACE(_T(__FUNCTION__) _T(" hr=%p pFolder=%p\n"), hr, pFolder.p);
 		}
 		BuildFolderMenu(pFolder, hMenu);
+
+		//auto hMenuWnd = ::FindWindow(_T("#32768"), NULL);
+		//::SetWindowTheme(hMenuWnd, L"DarkMode", L"Menu");
 	}
 	else
 	{
@@ -159,23 +178,24 @@ LRESULT CShellBrowseMenu::OnMenuSelect(UINT, WPARAM wParam, LPARAM lParam, BOOL&
 		if (::GetMenuItemInfo(hMenu, item, isPopup, &mii) && mii.dwItemData)
 		{
 			auto pData = (LPSHELLITEMDATA)mii.dwItemData;
-
-			ShellItemSelection& selObject = isPopup ? m_folderSelection : m_selection;
-
-			selObject.hMenu = hMenu;
-			selObject.byPosition = isPopup;
-			selObject.menuItem = item;
-
-			selObject.parentFolder = pData->parentFolder.p;
-			selObject.parentFolder.p->AddRef();
-			selObject.relativeIDL.CopyFrom(pData->relativeIDL);
-
-			if (isPopup)
+			if (pData->parentFolder && !pData->relativeIDL.IsNull())
 			{
-				::GetMenuItemRect(m_controller->GetHWnd(), hMenu, item, &m_folderSelection.itemRect);
-			}
+				ShellItemSelection& selObject = isPopup ? m_folderSelection : m_selection;
 
-			bHandled = TRUE;
+				selObject.hMenu = hMenu;
+				selObject.byPosition = isPopup;
+				selObject.menuItem = item;
+
+				selObject.parentFolder = pData->parentFolder.p;
+				selObject.parentFolder.p->AddRef();
+				selObject.relativeIDL.CopyFrom(pData->relativeIDL);
+
+				if (isPopup)
+				{
+					::GetMenuItemRect(m_controller->GetHWnd(), hMenu, item, &m_folderSelection.itemRect);
+				}
+				bHandled = TRUE;
+			}
 		}
 	}
 	return 1;
@@ -253,66 +273,166 @@ LRESULT CShellBrowseMenu::OnDrawItem(UINT, WPARAM /*wParam*/, LPARAM lParam, BOO
 {
 	bHandled = FALSE;
 	LPDRAWITEMSTRUCT lpDis = (LPDRAWITEMSTRUCT)lParam;
-	if (NULL == lpDis || ODT_MENU != lpDis->CtlType || NULL == lpDis->itemData || !m_pImageList)
+	if (NULL == lpDis || ODT_MENU != lpDis->CtlType || NULL == lpDis->itemData)
 	{
 		return FALSE;
 	}
 
 	bHandled = TRUE;
-
-	auto pData = (LPSHELLITEMDATA)lpDis->itemData;
-
-	CShellItemIDList idlParent;
-	CComQIPtr<IPersistFolder2> persFolder(pData->parentFolder);
-	if (!persFolder || FAILED(persFolder->GetCurFolder(&idlParent)))
-		return FALSE;
-
-	CShellItemIDList idl(CShellMgr::ConcatIDLs(idlParent, pData->relativeIDL));
-	// quicker method but doesn't return all IDLs
-	//CShellItemIDList idl(CShellMgr::GetAbsoluteIDL(pData->parentFolder, pData->relativeIDL));
-	////ATLASSERT(!idl.IsNull());
-	if (idl.IsNull())
-		return FALSE;
-
-	IMAGELISTDRAWPARAMS ildp;
-	::ZeroMemory(&ildp, sizeof(IMAGELISTDRAWPARAMS));
-	ildp.cbSize = sizeof(IMAGELISTDRAWPARAMS);
-	ildp.himl = (HIMAGELIST)m_pImageList.p;
-	ildp.i = CShellMgr::GetIconIndex(idl, SHGFI_PIDL | SHGFI_SYSICONINDEX | SHGFI_SMALLICON);
-	ildp.hdcDst = lpDis->hDC;
-	ildp.x = lpDis->rcItem.left + 1;
-	ildp.y = lpDis->rcItem.top + 2;
-	ildp.rgbBk = CLR_NONE;
-	ildp.rgbFg = CLR_DEFAULT;
-	ildp.fStyle = ILD_TRANSPARENT;
-
-	auto hr = m_pImageList->Draw(&ildp);
-	//ATLTRACE(_T(__FUNCTION__) _T(" hr=%p\n"), hr);
-
-	return SUCCEEDED(hr) ? TRUE : FALSE;
+	return CustomDrawMenuItem(lpDis);
 }
 
 LRESULT CShellBrowseMenu::OnMeasureItem(UINT, WPARAM /*wParam*/, LPARAM lParam, BOOL& bHandled)
 {
 	bHandled = FALSE;
 	LPMEASUREITEMSTRUCT lpMis = (LPMEASUREITEMSTRUCT)lParam;
-	if (NULL == lpMis || ODT_MENU != lpMis->CtlType || NULL == lpMis->itemData || !m_pImageList)
+	if (NULL == lpMis || ODT_MENU != lpMis->CtlType || NULL == lpMis->itemData)
 	{
 		return FALSE;
 	}
 
 	bHandled = TRUE;
+	return MeasureMenuItem(lpMis);
+}
 
-	CSize sz;
-	auto hr = m_pImageList->GetIconSize((int*) &sz.cx, (int*) &sz.cy);
-	//ATLTRACE(_T(__FUNCTION__) _T(" hr=%p itemWidth=%d itemHeight=%d\n"), hr, sz.cx, sz.cy);
-	if (SUCCEEDED(hr))
+BOOL CShellBrowseMenu::CustomDrawMenuItem(LPDRAWITEMSTRUCT lpDis)
+{
+
+	auto pData = (LPSHELLMENUITEMDATA)lpDis->itemData;
+
+	CDCHandle dc = lpDis->hDC;
+	RECT& rcItem = lpDis->rcItem;
+
+	auto isDisabled = ODS_GRAYED == (lpDis->itemState & ODS_GRAYED);
+	auto isSelected = ODS_SELECTED == (lpDis->itemState & ODS_SELECTED);
+	auto isSeparator = 0 == pData->caption.GetLength();
+
+	CPenDC pen(dc, isSelected && !isDisabled ? m_metrics.crHihghlight : m_metrics.crBg);
+	CBrushDC brush(dc, isSelected && !isDisabled ? m_metrics.crHighlightBg : m_metrics.crBg);
+	dc.Rectangle(&rcItem);
+
+	CRect rc(rcItem);
+	if (m_metrics.sizeIcon.cx)
 	{
-		lpMis->itemHeight = sz.cx + 4;
-		lpMis->itemWidth = sz.cy + 4;
-		return TRUE;
+		rc.left += m_metrics.sizeIcon.cx + (m_metrics.paddingIcon.cx * 2);
 	}
-	return FALSE;
+
+	if (isSeparator)
+	{
+		rc.top += rc.Height() / 2;
+		rc.bottom = rc.top + 1;
+		CPenDC penSep(dc, m_metrics.crBorder);
+		//CBrushDC brushSep(dc, m_metrics.crBorder);
+		dc.MoveTo(rc.left, rc.top);
+		dc.LineTo(rc.right, rc.top);
+		//dc.DrawEdge(rc, EDGE_ETCHED, BF_TOP);
+	}
+	else
+	{
+		auto isSubmenu = ::IsMenu((HMENU)(UINT_PTR)lpDis->itemID);
+
+		if (-1 < pData->iconIndex && m_pImageList)
+		{
+			IMAGELISTDRAWPARAMS ildp;
+			::ZeroMemory(&ildp, sizeof(IMAGELISTDRAWPARAMS));
+			ildp.cbSize = sizeof(IMAGELISTDRAWPARAMS);
+			ildp.himl = (HIMAGELIST)m_pImageList.p;
+			ildp.i = pData->iconIndex;
+			ildp.hdcDst = lpDis->hDC;
+			ildp.x = lpDis->rcItem.left + m_metrics.paddingIcon.cx;
+			ildp.y = lpDis->rcItem.top + m_metrics.paddingIcon.cy;
+			ildp.rgbBk = CLR_NONE;
+			ildp.rgbFg = CLR_DEFAULT;
+			ildp.fStyle = ILD_TRANSPARENT;
+
+			m_pImageList->Draw(&ildp);
+		}
+
+		dc.SetTextColor(isDisabled ? m_metrics.crTextDisabled : m_metrics.crText);
+		dc.SetBkMode(TRANSPARENT);
+
+		rc.left += m_metrics.paddingText.cx;
+		CFontDC font(dc, m_metrics.fontMnu);
+		dc.DrawText(pData->caption, pData->caption.GetLength(), rc, DT_SINGLELINE | DT_VCENTER | DT_LEFT | DT_END_ELLIPSIS);
+
+		if (isSubmenu)
+		{
+			CustomDrawMenuArrow(dc, &rcItem, isDisabled);
+		}
+
+		dc.ExcludeClipRect(&rcItem);
+	}
+	return TRUE;
+}
+
+BOOL CShellBrowseMenu::CustomDrawMenuArrow(HDC hdcItem, LPRECT rcItem, bool isDisabled)
+{
+	CRect rcArrow(rcItem);
+	rcArrow.left = rcItem->right - m_metrics.sizeMnuArrow.cx;
+
+	if (rcArrow.Height() > m_metrics.sizeMnuArrow.cy)
+	{
+		rcArrow.top += (rcArrow.Height() - m_metrics.sizeMnuArrow.cy) / 2;
+		rcArrow.bottom = rcArrow.top + m_metrics.sizeMnuArrow.cy;
+	}
+
+	CDCHandle dc(hdcItem);
+	
+	CDC arrowDC;
+	arrowDC.CreateCompatibleDC(hdcItem);
+
+	CBitmap arrowBitmap;
+	arrowBitmap.CreateCompatibleBitmap(dc, rcArrow.Width(), rcArrow.Height());
+	auto oldArrowBmp = arrowDC.SelectBitmap(arrowBitmap);
+
+	CDC fillDC;
+	fillDC.CreateCompatibleDC(hdcItem);
+
+	CBitmap fillBitmap;
+	fillBitmap.CreateCompatibleBitmap(dc, rcArrow.Width(), rcArrow.Height());
+	auto oldFillBmp = fillDC.SelectBitmap(fillBitmap);
+
+	CRect rcTemp(0, 0, rcArrow.Width(), rcArrow.Height());
+	auto result = arrowDC.DrawFrameControl(&rcTemp, DFC_MENU, DFCS_MENUARROW);
+
+	fillDC.FillRect(rcTemp, isDisabled ? m_metrics.brushTextDisabled : m_metrics.brushText);
+
+	dc.BitBlt(rcArrow.left, rcArrow.top, rcArrow.Width(), rcArrow.Height(), fillDC, 0, 0, SRCINVERT);
+	dc.BitBlt(rcArrow.left, rcArrow.top, rcArrow.Width(), rcArrow.Height(), arrowDC, 0, 0, SRCAND);
+	dc.BitBlt(rcArrow.left, rcArrow.top, rcArrow.Width(), rcArrow.Height(), fillDC, 0, 0, SRCINVERT);
+
+	arrowDC.SelectBitmap(oldArrowBmp);
+	fillDC.SelectBitmap(oldFillBmp);
+	return result;
+}
+
+BOOL CShellBrowseMenu::MeasureMenuItem(LPMEASUREITEMSTRUCT lpMis)
+{
+	auto pData = (LPSHELLMENUITEMDATA)lpMis->itemData;
+
+	auto isSeparator = 0 == pData->caption.GetLength();
+	if (isSeparator)
+	{
+		lpMis->itemHeight = ::GetSystemMetrics(SM_CYMENU) / 2;
+		lpMis->itemWidth = 0;
+	}
+	else
+	{
+		CWindowDC dc(NULL);
+
+		CFontDC font(dc, m_metrics.fontMnu);
+		CRect rcText;
+		dc.DrawText(pData->caption, -1, rcText, DT_SINGLELINE | DT_LEFT | DT_VCENTER | DT_CALCRECT);
+
+		lpMis->itemHeight = m_metrics.itemHeight;
+		lpMis->itemWidth = rcText.Width() + m_metrics.paddingIcon.cx + m_metrics.sizeMnuArrow.cx;
+		if (m_metrics.sizeIcon.cx)
+		{
+			lpMis->itemWidth += (m_metrics.paddingText.cx * 2) + m_metrics.sizeIcon.cx;
+		}
+	}
+
+	return TRUE;
 }
 
 HRESULT CShellBrowseMenu::LoadIconImages()
@@ -320,7 +440,64 @@ HRESULT CShellBrowseMenu::LoadIconImages()
 	return ::SHGetImageList(SHIL_SMALL, IID_IImageList, (void**) &m_pImageList);
 }
 
-BOOL CShellBrowseMenu::SetupMenuInfo(CMenuHandle& menu) const
+void CShellBrowseMenu::UpdateMetrics(bool colorsOnly)
+{
+	auto isDark = IsInDarkMode();
+	m_metrics.crBg = isDark ? HLS_TRANSFORM(uxTheme.GetSysColorValue(CUxTheme::UIColorType::Background), +20, -20) : ::GetSysColor(COLOR_3DFACE);
+	m_metrics.crText = isDark ? uxTheme.GetSysColorValue(CUxTheme::UIColorType::Foreground) : ::GetSysColor(COLOR_MENUTEXT);
+	m_metrics.crTextDisabled = isDark ? HLS_TRANSFORM(m_metrics.crText, -50, 0) : ::GetSysColor(COLOR_GRAYTEXT);
+	m_metrics.crBorder = isDark ? HLS_TRANSFORM(m_metrics.crTextDisabled, -20, 0) : ::GetSysColor(COLOR_SCROLLBAR);
+	m_metrics.crHihghlight = isDark ? uxTheme.GetSysColorValue(CUxTheme::UIColorType::Background) : ::GetSysColor(COLOR_MENUHILIGHT);
+	m_metrics.crHighlightBg = isDark ? HLS_TRANSFORM(m_metrics.crHihghlight, +40, -17) : HLS_TRANSFORM(m_metrics.crHihghlight, +70, -57);
+	if (isDark)
+	{
+		if (!m_metrics.brushBg.IsNull())
+			m_metrics.brushBg.DeleteObject();
+		m_metrics.brushBg.CreateSolidBrush(m_metrics.crBg);
+	}
+	if (!m_metrics.brushText.IsNull())
+		m_metrics.brushText.DeleteObject();
+	m_metrics.brushText.CreateSolidBrush(m_metrics.crText);
+	if (!m_metrics.brushTextDisabled.IsNull())
+		m_metrics.brushTextDisabled.DeleteObject();
+	m_metrics.brushTextDisabled.CreateSolidBrush(m_metrics.crTextDisabled);
+
+	if (!colorsOnly)
+	{
+		CBitmap bmpArrow;
+		BITMAP bm;
+		// ::LoadImage(NULL, MAKEINTRESOURCE(OBM_MNARROW), IMAGE_BITMAP, 0, 0, LR_DEFAULTSIZE | LR_SHARED)
+		if (bmpArrow.LoadOEMBitmap(OBM_MNARROW) && bmpArrow.GetBitmap(bm))
+		{
+			m_metrics.sizeMnuArrow.cx = bm.bmWidth;
+			m_metrics.sizeMnuArrow.cy = bm.bmHeight;
+		}
+
+		if (m_pImageList)
+		{
+			m_pImageList->GetIconSize((int*)&m_metrics.sizeIcon.cx, (int*)&m_metrics.sizeIcon.cy);
+			m_pImageList->GetIconSize((int*)&m_metrics.sizeIcon.cx, (int*)&m_metrics.sizeIcon.cy);
+		}
+
+		m_metrics.metricsNC.cbSize = sizeof(NONCLIENTMETRICS);
+		if (::SystemParametersInfo(SPI_GETNONCLIENTMETRICS, m_metrics.metricsNC.cbSize, &m_metrics.metricsNC, 0))
+		{
+			m_metrics.fontMnu.CreateFontIndirect(&m_metrics.metricsNC.lfMenuFont);
+
+			m_metrics.itemHeight = max(m_metrics.metricsNC.iMenuHeight, ::abs(m_metrics.metricsNC.lfMenuFont.lfHeight) + (m_metrics.paddingText.cy * 2));
+			if (m_metrics.sizeIcon.cy && m_metrics.itemHeight < (m_metrics.paddingIcon.cy * 2) + m_metrics.sizeIcon.cy)
+			{
+				m_metrics.itemHeight = (m_metrics.paddingIcon.cy * 2) + m_metrics.sizeIcon.cy;
+			}
+			if (m_metrics.paddingIcon.cy > m_metrics.itemHeight - m_metrics.sizeIcon.cy - m_metrics.paddingIcon.cy)
+			{
+				m_metrics.paddingIcon.cy = (m_metrics.itemHeight - m_metrics.sizeIcon.cy) / 2;
+			}
+		}
+	}
+}
+
+BOOL CShellBrowseMenu::SetupMenuInfo(CMenuHandle& menu)
 {
 	if (menu.IsMenu())
 	{
@@ -329,6 +506,11 @@ BOOL CShellBrowseMenu::SetupMenuInfo(CMenuHandle& menu) const
 		mi.cbSize = sizeof(mi);
 		mi.fMask = MIM_STYLE;
 		mi.dwStyle = MNS_CHECKORBMP;
+		if (IsInDarkMode())
+		{
+			mi.fMask |= MIM_BACKGROUND;
+			mi.hbrBack = m_metrics.brushBg;
+		}
 		return menu.SetMenuInfo(&mi);
 	}
 	return FALSE;
@@ -359,11 +541,19 @@ HRESULT CShellBrowseMenu::BuildFolderMenu(LPSHELLFOLDER pFolder, HMENU hMenu)
 	ATLASSERT((int)id == ID_ACTION_FIRST + (m_openMenus.GetSize() * 0x1000));
 	UINT pos = isTopMenu ? m_controller->GetShellMenuAnchor() + 1 : 0;
 	auto idMsg = MessageID::SBM_NONE;
-	TCHAR szBuff[MAX_PATH];
-	szBuff[0] = _T('\0');
 
 	if (pFolder)
 	{
+		TCHAR szBuff[MAX_PATH];
+		szBuff[0] = _T('\0');
+
+		CShellItemIDList idlParent;
+		CComQIPtr<IPersistFolder2> persFolder(pFolder);
+		if (!persFolder || FAILED(persFolder->GetCurFolder(&idlParent)))
+		{
+			ATLTRACE2(_T(__FUNCTION__) _T(" failed to retrieve folder IDL\n"));
+		}
+
 		CShellItemIDList idlChild;
 		ULONG ulFetched = 0;
 
@@ -399,7 +589,14 @@ HRESULT CShellBrowseMenu::BuildFolderMenu(LPSHELLFOLDER pFolder, HMENU hMenu)
 								: menuPopup.AppendMenu(MF_STRING, id, szBuff);
 							if (succ)
 							{
-								auto pData = new ShellItemData;
+								auto pData = new ShellMenuItemData;
+
+								if (!idlParent.IsNull())
+								{
+									CShellItemIDList absIDL(CShellMgr::ConcatIDLs(idlParent, idlChild));
+									pData->iconIndex = CShellMgr::GetIconIndex(absIDL, SHGFI_PIDL | SHGFI_SYSICONINDEX | SHGFI_SMALLICON);
+								}
+								pData->caption = szBuff;
 								pData->parentFolder.p = pFolder;
 								pFolder->AddRef();
 								pData->relativeIDL.CopyFrom(idlChild);
@@ -409,9 +606,19 @@ HRESULT CShellBrowseMenu::BuildFolderMenu(LPSHELLFOLDER pFolder, HMENU hMenu)
 									pSelf.p->AddRef();
 								}
 
+								//CMenuItemInfo mii;
+								//mii.fMask = MIIM_DATA | MIIM_BITMAP;
+								//mii.hbmpItem = HBMMENU_CALLBACK;
+								//mii.dwItemData = (LONG_PTR)pData;
+
 								CMenuItemInfo mii;
-								mii.fMask = MIIM_DATA | MIIM_BITMAP;
-								mii.hbmpItem = HBMMENU_CALLBACK;
+								mii.cch = ::lstrlen(szBuff);
+								mii.fMask = MIIM_CHECKMARKS | MIIM_DATA | MIIM_ID | MIIM_STATE | MIIM_SUBMENU | MIIM_TYPE;
+								mii.dwTypeData = szBuff;
+
+								menuPopup.GetMenuItemInfo(pos, TRUE, &mii);
+
+								mii.fType |= MFT_OWNERDRAW;
 								mii.dwItemData = (LONG_PTR)pData;
 
 								succ = menuPopup.SetMenuItemInfo(pos, TRUE, &mii);
@@ -448,7 +655,27 @@ HRESULT CShellBrowseMenu::BuildFolderMenu(LPSHELLFOLDER pFolder, HMENU hMenu)
 		menuPopup.AppendMenu(MF_STRING, id, strMsg);
 		menuPopup.EnableMenuItem(id, MF_BYCOMMAND | MF_DISABLED);
 	}
+	else if (isTopMenu)
+	{
+		for (auto i = 0; i <= m_controller->GetShellMenuAnchor(); i++)
+		{
+			auto pData = new ShellMenuItemData;
 
+			CMenuItemInfo mii;
+			mii.fMask = MIIM_CHECKMARKS | MIIM_DATA | MIIM_ID | MIIM_STATE | MIIM_SUBMENU | MIIM_TYPE;
+
+			menuPopup.GetMenuItemInfo(i, TRUE, &mii);
+			if (MFT_SEPARATOR != (mii.fType & MFT_SEPARATOR))
+			{
+				::GetMenuString(menuPopup, i, pData->caption.GetBufferSetLength(MAX_PATH), MAX_PATH, MF_BYPOSITION);
+				pData->caption.ReleaseBuffer();
+			}
+
+			mii.fType |= MFT_OWNERDRAW;
+			mii.dwItemData = (LONG_PTR)pData;
+			menuPopup.SetMenuItemInfo(i, TRUE, &mii);
+		}
+	}
 	
 	return hr;
 }
