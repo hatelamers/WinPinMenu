@@ -50,11 +50,6 @@ public:
 			return 0;
 		}
 
-		uxTheme.AllowDarkModeForWindow(wndFrame, true);
-		if (uxTheme.ShouldAppsUseDarkMode())
-		{
-			uxTheme.SwitchWindowDarkMode(wndFrame, true);
-		}
 		wndFrame.ShowWindow(pData->nCmdShow);
 		delete pData;
 
@@ -148,7 +143,8 @@ public:
 int WINAPI _tWinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPTSTR lpstrCmdLine, int nCmdShow)
 {
 	// TODO: intrusive dark mode doesn't support owner-drawn menus, we need to paint all ourselves
-	//uxTheme.SetPreferredAppMode(PreferredAppMode::AllowDark);
+	uxTheme.SetPreferredAppMode(PreferredAppMode::AllowDark);
+	::SetThemeAppProperties(STAP_ALLOW_NONCLIENT | STAP_ALLOW_CONTROLS | STAP_ALLOW_WEBCONTENT);
 
 	HRESULT hRes = ::CoInitialize(NULL);
 	ATLASSERT(SUCCEEDED(hRes));
