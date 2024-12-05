@@ -4,8 +4,9 @@
 #define PRODUCT_VERSION_MAJOR 0
 #define PRODUCT_VERSION_MINOR 1
 #define PRODUCT_VERSION_PATCH 1
-#define PRODUCT_VERSION_TWEAK 33
+#define PRODUCT_VERSION_TWEAK 39
 #define PRODUCT_NAME _T("WinPinMenu\0")
+#define PRODUCT_TITLE _T("Pinnable Taskbar Menu\0")
 #define PRODUCT_DESCRIPTION _T("diVISION Pinnable Taskbar Menu For Windows\0")
 #define PRODUCT_HOMEPAGE_URL _T("https://github.com/hatelamers/WinPinMenu\0")
 #define PRODUCT_VENDOR _T("diVISION\0")
@@ -19,5 +20,5 @@
 #define FILE_NAME _T("WinPinMenu\0")
 #define FILE_DESCRIPTION _T("diVISION Pinnable Taskbar Menu For Windows\0")
 
-#define FILE_VERSION	0,1,1,33
-#define FILE_VERSION_S	_T("0.1.1.33\0")
+#define FILE_VERSION	0,1,1,39
+#define FILE_VERSION_S	_T("0.1.1.39\0")
