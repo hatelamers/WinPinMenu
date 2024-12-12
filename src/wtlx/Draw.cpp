@@ -9,9 +9,9 @@
  * @author Igor Vigdorchik (http://www.codeproject.com/Members/IgorVigdorchik)
  ************************************************************************/
 
-#include "stdafx.h"
+#include "pch.h"
 //#include "Tools.h"
-#include "Draw.h"
+#include "wtlx/Draw.h"
 
 ///////////////////////////////////////////////////////////////////////////////
 HLSCOLOR RGB2HLS (COLORREF rgb)
@@ -102,6 +102,22 @@ COLORREF HLS_TRANSFORM (COLORREF rgb, int percent_L, int percent_S)
         s = BYTE((s * (100+percent_S)) / 100);
     }
     return HLS2RGB (HLS(h, l, s));
+}
+
+UINT ImageList_GetBitsPerPixelFlag()
+{
+    UINT bppFlag = ILC_COLOR;
+    static const UINT colorDepths[] = { ILC_COLOR32, ILC_COLOR24, ILC_COLOR16, ILC_COLOR8, ILC_COLOR4 };
+    auto bpp = (UINT)::GetDeviceCaps(::GetDC(::GetDesktopWindow()), BITSPIXEL);
+    for (auto colorDepth : colorDepths)
+    {
+        if (bpp >= colorDepth)
+        {
+            bppFlag = colorDepth;
+            break;
+        }
+    }
+    return bppFlag;
 }
 
 

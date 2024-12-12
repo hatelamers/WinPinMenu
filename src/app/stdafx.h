@@ -14,8 +14,6 @@
 
 #include <tuple>
 
-#include <dwmapi.h>
-
 #include <atlbase.h>
 #if (_ATL_VER >= 0x0700)
 #include <atlstr.h>
@@ -40,5 +38,6 @@ extern CAppModule _Module;
 
 #include <commoncontrols.h>
 
-#include "taskbarautomation.h"
-#include "uxthemehelper.h"
+#include <wtlx/taskbarautomation.h>
+#include <wtlx/uxthemehelper.h>
+#include <wtlx/UxModeHyperLink.h>
