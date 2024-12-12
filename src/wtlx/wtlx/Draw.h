@@ -28,6 +28,7 @@ COLORREF HLS2RGB (HLSCOLOR hls);
 // Performs some modifications on the specified color : luminance and saturation
 COLORREF HLS_TRANSFORM (COLORREF rgb, int percent_L, int percent_S);
 
+UINT ImageList_GetBitsPerPixelFlag();
 
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////

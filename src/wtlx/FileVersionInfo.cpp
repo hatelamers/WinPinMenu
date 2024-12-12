@@ -8,11 +8,9 @@
  * License: GPLv3, s. LICENSE.txt
  * @author Dmitri Zoubkov (dimamizou@users.sf.net)
  ************************************************************************/
-#include "stdafx.h"
+#include "pch.h"
 #include <strsafe.h>
-#include "FileVersionInfo.h"
-
-#pragma comment(lib,"Version.lib")
+#include "wtlx/FileVersionInfo.h"
 
 CFileVersionInfo::CFileVersionInfo()
     : m_lpData(NULL)

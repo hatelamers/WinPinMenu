@@ -2,7 +2,6 @@
 
 #include "resource.h"
 
-#include "Draw.h"
 #include "ShellMgr.h"
 #include "ShellBrowseMenu.h"
 
@@ -10,7 +9,6 @@ CShellBrowseMenu::CShellBrowseMenu(const ShellMenuController* controller)
 	: m_controller(controller), m_isRendered(false), m_isCtxMenuShowing(false)
 {
 	LoadIconImages();
-	UpdateMetrics();
 }
 
 HRESULT CShellBrowseMenu::Rebuild()
@@ -57,11 +55,13 @@ BOOL CShellBrowseMenu::InvokeWithSelection(LPCTSTR strVerb) const
 	return FALSE;
 }
 
-LRESULT CShellBrowseMenu::OnThemeChange(UINT, WPARAM, LPARAM, BOOL& bHandled)
+void CShellBrowseMenu::UxModeUpdateColorSettings()
 {
-	bHandled = FALSE;
-	UpdateMetrics(true);
-	return 0L;
+	CUxModeMenuHelper::UxModeUpdateColorSettings();
+	if (!uxTheme.IsInDarkMode())
+	{
+		m_menuColors.crHighlightBg = UXCOLOR_LIGHTER(m_menuColors.crHighlightBg, 0.3);
+	}
 }
 
 LRESULT CShellBrowseMenu::OnInitMenuPopup(UINT, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
@@ -303,29 +303,42 @@ BOOL CShellBrowseMenu::CustomDrawMenuItem(LPDRAWITEMSTRUCT lpDis)
 	CDCHandle dc = lpDis->hDC;
 	RECT& rcItem = lpDis->rcItem;
 
+	CRect rcOverpaint(rcItem);
+	rcOverpaint.top -= 1;
+	rcOverpaint.bottom += 1;
+	m_menuTheme.DrawThemeBackground(dc, MENU_POPUPBACKGROUND, 0, rcOverpaint, NULL);
+
 	auto isDisabled = ODS_GRAYED == (lpDis->itemState & ODS_GRAYED);
 	auto isSelected = ODS_SELECTED == (lpDis->itemState & ODS_SELECTED);
 	auto isSeparator = 0 == pData->caption.GetLength();
 
-	CPenDC pen(dc, isSelected && !isDisabled ? m_metrics.crHihghlight : m_metrics.crBg);
-	CBrushDC brush(dc, isSelected && !isDisabled ? m_metrics.crHighlightBg : m_metrics.crBg);
-	dc.Rectangle(&rcItem);
+	auto itemState = isDisabled ? MPIF_DISABLED : MPI_NORMAL;
+	if (isSelected)
+		itemState = isDisabled ? MPI_DISABLEDHOT : MPI_HOT;
+	m_menuTheme.DrawThemeBackground(dc, MENU_POPUPITEM, itemState, &rcItem, NULL);
+
+	if (isSelected && !isDisabled)
+	{
+		CPen pen;
+		pen.CreatePen(PS_SOLID, 1, m_menuColors.crHihghlight);
+		auto oldPen = dc.SelectPen(pen);
+		auto oldBrush = dc.SelectBrush((HBRUSH)::GetStockObject(HOLLOW_BRUSH));
+		dc.Rectangle(&rcItem);
+		if (oldBrush)
+			dc.SelectBrush(oldBrush);
+		if (oldPen)
+			dc.SelectPen(oldPen);
+	}
 
 	CRect rc(rcItem);
-	if (m_metrics.sizeIcon.cx)
+	if (m_menuMetrics.sizeIcon.cx)
 	{
-		rc.left += m_metrics.sizeIcon.cx + (m_metrics.paddingIcon.cx * 2);
+		rc.left += m_menuMetrics.sizeIcon.cx + (m_menuMetrics.paddingIcon.cx * 2);
 	}
 
 	if (isSeparator)
 	{
-		rc.top += rc.Height() / 2;
-		rc.bottom = rc.top + 1;
-		CPenDC penSep(dc, m_metrics.crBorder);
-		//CBrushDC brushSep(dc, m_metrics.crBorder);
-		dc.MoveTo(rc.left, rc.top);
-		dc.LineTo(rc.right, rc.top);
-		//dc.DrawEdge(rc, EDGE_ETCHED, BF_TOP);
+		m_menuTheme.DrawThemeBackground(dc, MENU_POPUPSEPARATOR, 0, rc, NULL);
 	}
 	else
 	{
@@ -339,8 +352,8 @@ BOOL CShellBrowseMenu::CustomDrawMenuItem(LPDRAWITEMSTRUCT lpDis)
 			ildp.himl = (HIMAGELIST)m_pImageList.p;
 			ildp.i = pData->iconIndex;
 			ildp.hdcDst = lpDis->hDC;
-			ildp.x = lpDis->rcItem.left + m_metrics.paddingIcon.cx;
-			ildp.y = lpDis->rcItem.top + m_metrics.paddingIcon.cy;
+			ildp.x = lpDis->rcItem.left + m_menuMetrics.paddingIcon.cx;
+			ildp.y = lpDis->rcItem.top + m_menuMetrics.paddingIcon.cy;
 			ildp.rgbBk = CLR_NONE;
 			ildp.rgbFg = CLR_DEFAULT;
 			ildp.fStyle = ILD_TRANSPARENT;
@@ -348,12 +361,14 @@ BOOL CShellBrowseMenu::CustomDrawMenuItem(LPDRAWITEMSTRUCT lpDis)
 			m_pImageList->Draw(&ildp);
 		}
 
-		dc.SetTextColor(isDisabled ? m_metrics.crTextDisabled : m_metrics.crText);
 		dc.SetBkMode(TRANSPARENT);
 
-		rc.left += m_metrics.paddingText.cx;
-		CFontDC font(dc, m_metrics.fontMnu);
-		dc.DrawText(pData->caption, pData->caption.GetLength(), rc, DT_SINGLELINE | DT_VCENTER | DT_LEFT | DT_END_ELLIPSIS);
+		rc.left += m_menuMetrics.paddingText.cx;
+		DWORD dwFlags = DT_SINGLELINE | DT_VCENTER | DT_END_ELLIPSIS;
+		if (ODS_NOACCEL == (ODS_NOACCEL & lpDis->itemState)) {
+			dwFlags |= DT_HIDEPREFIX;
+		}
+		m_menuTheme.DrawThemeText(dc, MENU_POPUPITEM, itemState, pData->caption, -1, dwFlags, 0, rc);
 
 		if (isSubmenu)
 		{
@@ -363,47 +378,6 @@ BOOL CShellBrowseMenu::CustomDrawMenuItem(LPDRAWITEMSTRUCT lpDis)
 		dc.ExcludeClipRect(&rcItem);
 	}
 	return TRUE;
-}
-
-BOOL CShellBrowseMenu::CustomDrawMenuArrow(HDC hdcItem, LPRECT rcItem, bool isDisabled)
-{
-	CRect rcArrow(rcItem);
-	rcArrow.left = rcItem->right - m_metrics.sizeMnuArrow.cx;
-
-	if (rcArrow.Height() > m_metrics.sizeMnuArrow.cy)
-	{
-		rcArrow.top += (rcArrow.Height() - m_metrics.sizeMnuArrow.cy) / 2;
-		rcArrow.bottom = rcArrow.top + m_metrics.sizeMnuArrow.cy;
-	}
-
-	CDCHandle dc(hdcItem);
-	
-	CDC arrowDC;
-	arrowDC.CreateCompatibleDC(hdcItem);
-
-	CBitmap arrowBitmap;
-	arrowBitmap.CreateCompatibleBitmap(dc, rcArrow.Width(), rcArrow.Height());
-	auto oldArrowBmp = arrowDC.SelectBitmap(arrowBitmap);
-
-	CDC fillDC;
-	fillDC.CreateCompatibleDC(hdcItem);
-
-	CBitmap fillBitmap;
-	fillBitmap.CreateCompatibleBitmap(dc, rcArrow.Width(), rcArrow.Height());
-	auto oldFillBmp = fillDC.SelectBitmap(fillBitmap);
-
-	CRect rcTemp(0, 0, rcArrow.Width(), rcArrow.Height());
-	auto result = arrowDC.DrawFrameControl(&rcTemp, DFC_MENU, DFCS_MENUARROW);
-
-	fillDC.FillRect(rcTemp, isDisabled ? m_metrics.brushTextDisabled : m_metrics.brushText);
-
-	dc.BitBlt(rcArrow.left, rcArrow.top, rcArrow.Width(), rcArrow.Height(), fillDC, 0, 0, SRCINVERT);
-	dc.BitBlt(rcArrow.left, rcArrow.top, rcArrow.Width(), rcArrow.Height(), arrowDC, 0, 0, SRCAND);
-	dc.BitBlt(rcArrow.left, rcArrow.top, rcArrow.Width(), rcArrow.Height(), fillDC, 0, 0, SRCINVERT);
-
-	arrowDC.SelectBitmap(oldArrowBmp);
-	fillDC.SelectBitmap(oldFillBmp);
-	return result;
 }
 
 BOOL CShellBrowseMenu::MeasureMenuItem(LPMEASUREITEMSTRUCT lpMis)
@@ -418,17 +392,15 @@ BOOL CShellBrowseMenu::MeasureMenuItem(LPMEASUREITEMSTRUCT lpMis)
 	}
 	else
 	{
-		CWindowDC dc(NULL);
-
-		CFontDC font(dc, m_metrics.fontMnu);
+		CWindowDC dc(GetOwnerHWND());
 		CRect rcText;
-		dc.DrawText(pData->caption, -1, rcText, DT_SINGLELINE | DT_LEFT | DT_VCENTER | DT_CALCRECT);
+		m_menuTheme.GetThemeTextExtent(dc, MENU_POPUPITEM, MPI_NORMAL, pData->caption, -1, DT_SINGLELINE | DT_LEFT | DT_VCENTER | DT_CALCRECT, NULL, rcText);
 
-		lpMis->itemHeight = m_metrics.itemHeight;
-		lpMis->itemWidth = rcText.Width() + m_metrics.paddingIcon.cx + m_metrics.sizeMnuArrow.cx;
-		if (m_metrics.sizeIcon.cx)
+		lpMis->itemHeight = m_menuMetrics.itemHeight;
+		lpMis->itemWidth = rcText.Width() + m_menuMetrics.paddingIcon.cx + m_menuMetrics.sizeMnuArrow.cx;
+		if (m_menuMetrics.sizeIcon.cx)
 		{
-			lpMis->itemWidth += (m_metrics.paddingText.cx * 2) + m_metrics.sizeIcon.cx;
+			lpMis->itemWidth += (m_menuMetrics.paddingText.cx * 2) + m_menuMetrics.sizeIcon.cx;
 		}
 	}
 
@@ -437,64 +409,13 @@ BOOL CShellBrowseMenu::MeasureMenuItem(LPMEASUREITEMSTRUCT lpMis)
 
 HRESULT CShellBrowseMenu::LoadIconImages()
 {
-	return ::SHGetImageList(SHIL_SMALL, IID_IImageList, (void**) &m_pImageList);
-}
-
-void CShellBrowseMenu::UpdateMetrics(bool colorsOnly)
-{
-	auto isDark = IsInDarkMode();
-	m_metrics.crBg = isDark ? HLS_TRANSFORM(uxTheme.GetSysColorValue(CUxTheme::UIColorType::Background), +20, -20) : ::GetSysColor(COLOR_3DFACE);
-	m_metrics.crText = isDark ? uxTheme.GetSysColorValue(CUxTheme::UIColorType::Foreground) : ::GetSysColor(COLOR_MENUTEXT);
-	m_metrics.crTextDisabled = isDark ? HLS_TRANSFORM(m_metrics.crText, -50, 0) : ::GetSysColor(COLOR_GRAYTEXT);
-	m_metrics.crBorder = isDark ? HLS_TRANSFORM(m_metrics.crTextDisabled, -20, 0) : ::GetSysColor(COLOR_SCROLLBAR);
-	m_metrics.crHihghlight = isDark ? uxTheme.GetSysColorValue(CUxTheme::UIColorType::Background) : ::GetSysColor(COLOR_MENUHILIGHT);
-	m_metrics.crHighlightBg = isDark ? HLS_TRANSFORM(m_metrics.crHihghlight, +40, -17) : HLS_TRANSFORM(m_metrics.crHihghlight, +70, -57);
-	if (isDark)
+	auto result = ::SHGetImageList(SHIL_SMALL, IID_IImageList, (void**) &m_pImageList);
+	if (SUCCEEDED(result) && m_pImageList)
 	{
-		if (!m_metrics.brushBg.IsNull())
-			m_metrics.brushBg.DeleteObject();
-		m_metrics.brushBg.CreateSolidBrush(m_metrics.crBg);
+		m_pImageList->GetIconSize((int*)&m_menuMetrics.sizeIcon.cx, (int*)&m_menuMetrics.sizeIcon.cy);
+		m_pImageList->GetIconSize((int*)&m_menuMetrics.sizeIcon.cx, (int*)&m_menuMetrics.sizeIcon.cy);
 	}
-	if (!m_metrics.brushText.IsNull())
-		m_metrics.brushText.DeleteObject();
-	m_metrics.brushText.CreateSolidBrush(m_metrics.crText);
-	if (!m_metrics.brushTextDisabled.IsNull())
-		m_metrics.brushTextDisabled.DeleteObject();
-	m_metrics.brushTextDisabled.CreateSolidBrush(m_metrics.crTextDisabled);
-
-	if (!colorsOnly)
-	{
-		CBitmap bmpArrow;
-		BITMAP bm;
-		// ::LoadImage(NULL, MAKEINTRESOURCE(OBM_MNARROW), IMAGE_BITMAP, 0, 0, LR_DEFAULTSIZE | LR_SHARED)
-		if (bmpArrow.LoadOEMBitmap(OBM_MNARROW) && bmpArrow.GetBitmap(bm))
-		{
-			m_metrics.sizeMnuArrow.cx = bm.bmWidth;
-			m_metrics.sizeMnuArrow.cy = bm.bmHeight;
-		}
-
-		if (m_pImageList)
-		{
-			m_pImageList->GetIconSize((int*)&m_metrics.sizeIcon.cx, (int*)&m_metrics.sizeIcon.cy);
-			m_pImageList->GetIconSize((int*)&m_metrics.sizeIcon.cx, (int*)&m_metrics.sizeIcon.cy);
-		}
-
-		m_metrics.metricsNC.cbSize = sizeof(NONCLIENTMETRICS);
-		if (::SystemParametersInfo(SPI_GETNONCLIENTMETRICS, m_metrics.metricsNC.cbSize, &m_metrics.metricsNC, 0))
-		{
-			m_metrics.fontMnu.CreateFontIndirect(&m_metrics.metricsNC.lfMenuFont);
-
-			m_metrics.itemHeight = max(m_metrics.metricsNC.iMenuHeight, ::abs(m_metrics.metricsNC.lfMenuFont.lfHeight) + (m_metrics.paddingText.cy * 2));
-			if (m_metrics.sizeIcon.cy && m_metrics.itemHeight < (m_metrics.paddingIcon.cy * 2) + m_metrics.sizeIcon.cy)
-			{
-				m_metrics.itemHeight = (m_metrics.paddingIcon.cy * 2) + m_metrics.sizeIcon.cy;
-			}
-			if (m_metrics.paddingIcon.cy > m_metrics.itemHeight - m_metrics.sizeIcon.cy - m_metrics.paddingIcon.cy)
-			{
-				m_metrics.paddingIcon.cy = (m_metrics.itemHeight - m_metrics.sizeIcon.cy) / 2;
-			}
-		}
-	}
+	return result;
 }
 
 BOOL CShellBrowseMenu::SetupMenuInfo(CMenuHandle& menu)
@@ -506,11 +427,7 @@ BOOL CShellBrowseMenu::SetupMenuInfo(CMenuHandle& menu)
 		mi.cbSize = sizeof(mi);
 		mi.fMask = MIM_STYLE;
 		mi.dwStyle = MNS_CHECKORBMP;
-		if (IsInDarkMode())
-		{
-			mi.fMask |= MIM_BACKGROUND;
-			mi.hbrBack = m_metrics.brushBg;
-		}
+		UxModeUpdateMenuInfo(mi);
 		return menu.SetMenuInfo(&mi);
 	}
 	return FALSE;

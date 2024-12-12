@@ -56,6 +56,8 @@ add_custom_command(
         "${CMAKE_CURRENT_LIST_DIR}/${MAIN_TARGET_NAME}.sln"
         -t:restore
         -p:RestorePackagesConfig=true
+        -p:Configuration=$<CONFIG>
+        -p:Platform=${TARGET_ARCH_ID}
     COMMENT "Restoring NuGet packages"
 )
 
