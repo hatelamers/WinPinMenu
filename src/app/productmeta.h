@@ -4,7 +4,7 @@
 #define PRODUCT_VERSION_MAJOR 0
 #define PRODUCT_VERSION_MINOR 1
 #define PRODUCT_VERSION_PATCH 1
-#define PRODUCT_VERSION_TWEAK 48
+#define PRODUCT_VERSION_TWEAK 49
 #define PRODUCT_NAME _T("WinPinMenu\0")
 #define PRODUCT_TITLE _T("Pinnable Taskbar Menu\0")
 #define PRODUCT_DESCRIPTION _T("diVISION Pinnable Taskbar Menu For Windows\0")
@@ -20,5 +20,5 @@
 #define FILE_NAME _T("WinPinMenu\0")
 #define FILE_DESCRIPTION _T("diVISION Pinnable Taskbar Menu For Windows\0")
 
-#define FILE_VERSION	0,1,1,48
-#define FILE_VERSION_S	_T("0.1.1.48\0")
+#define FILE_VERSION	0,1,1,49
+#define FILE_VERSION_S	_T("0.1.1.49\0")
