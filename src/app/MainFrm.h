@@ -11,7 +11,8 @@
 #define MNUPOS_APP_EXIT 0
 
 class CMainFrame : 
-	public CFrameWindowImpl<CMainFrame>, 
+	public CFrameWindowImpl<CMainFrame>,
+	public CUxModeWindow<CMainFrame>,
 	public CUpdateUI<CMainFrame>,
 	public CMessageFilter, public CIdleHandler, public CShellBrowseMenu::ShellMenuController
 {
@@ -43,6 +44,7 @@ public:
 	END_UPDATE_UI_MAP()
 
 	BEGIN_MSG_MAP(CMainFrame)
+		CHAIN_MSG_MAP(CUxModeWindow<CMainFrame>)
 		MESSAGE_HANDLER(WM_CREATE, OnCreate)
 		MESSAGE_HANDLER(WM_DESTROY, OnDestroy)
 		MESSAGE_HANDLER(WM_MENUCOMMAND, OnMenuCommand)
@@ -77,10 +79,8 @@ private:
 	INT TriggerActionPopup();
 	POINT CalculatePopupPosision();
 
-public:
-	bool m_hasChildren{ false };
 private:
-	CMenu m_mnuMain;
+	CMenuHandle m_mnuMain;
 	CShellBrowseMenu m_shellMenu;
 	CString m_strActionSource;
 	CString m_strSourceTitle;

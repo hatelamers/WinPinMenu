@@ -10,6 +10,8 @@
  ************************************************************************/
 #pragma once
 
+#pragma comment(lib,"Version.lib")
+
 #define SFI_COMPANYNAME         _T("CompanyName")
 #define SFI_FILEDESCRIPTION     _T("FileDescription")
 #define SFI_FILEVERSION         _T("FileVersion")

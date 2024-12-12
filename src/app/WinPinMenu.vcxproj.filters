@@ -33,9 +33,6 @@
     <ClCompile Include="ShellBrowseMenu.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="FileVersionInfo.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="stdafx.h">
@@ -53,19 +50,10 @@
     <ClInclude Include="targetver.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="taskbarautomation.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="uxthemehelper.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="ShellMgr.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="ShellBrowseMenu.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="FileVersionInfo.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="productmeta.h">
@@ -93,5 +81,10 @@
     <None Include="res\WinPinMenu.rc2">
       <Filter>Resource Files</Filter>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Manifest Include="res\app.manifest">
+      <Filter>Resource Files</Filter>
+    </Manifest>
   </ItemGroup>
 </Project>

@@ -7,6 +7,7 @@
 #endif
 
 class CShellBrowseMenu
+	: public CUxModeMenuHelper<CShellBrowseMenu>
 {
 public:
 	enum MessageID
@@ -21,6 +22,14 @@ public:
 		virtual int GetShellMenuAnchor() const = 0;
 		virtual int GetMessageString(MessageID msgID, CString& msg) const = 0;
 	};
+
+	typedef struct ShellMenuItemData
+		: public ShellItemData
+	{
+		int iconIndex{ -1 };
+		CString caption;
+		virtual ~ShellMenuItemData() = default;
+	} SHELLMENUITEMDATA, * LPSHELLMENUITEMDATA;
 
 	struct ShellItemSelection
 		: public ShellItemData
@@ -46,15 +55,12 @@ public:
 		virtual ~FolderSelection() = default;
 	};
 
-	CShellBrowseMenu(const ShellMenuController* controller = NULL)
-		: m_controller(controller), m_isRendered(false), m_isCtxMenuShowing(false)
-	{
-		LoadIconImages();
-	}
+	CShellBrowseMenu(const ShellMenuController* controller = NULL);
 
 	virtual ~CShellBrowseMenu() = default;
 
 	BEGIN_MSG_MAP(CShellBrowseMenu)
+		CHAIN_MSG_MAP(CUxModeMenuHelper<CShellBrowseMenu>)
 		MESSAGE_HANDLER(WM_MENURBUTTONUP, OnMenuRButtonUp)
 		MESSAGE_HANDLER(WM_RBUTTONUP, OnRButtonUp)
 		MESSAGE_HANDLER(WM_MENUCOMMAND, OnMenuCommand)
@@ -85,6 +91,7 @@ public:
 		ATLASSERT(controller);
 		m_controller = controller;
 		m_mnuTop.Attach(m_controller ? m_controller->GetTopHMenu() : NULL);
+		UxModeSetup();
 		SetupMenuInfo(m_mnuTop);
 		if (!m_rootIDL.IsNull())
 		{
@@ -102,7 +109,13 @@ public:
 	HRESULT Rebuild();
 	BOOL InvokeWithSelection(LPCTSTR strVerb = _T("Open")) const;
 
+protected:
+	virtual void UxModeUpdateColorSettings() override;
 
+	virtual HWND GetOwnerHWND() override
+	{
+		return m_controller ? m_controller->GetHWnd() : NULL;
+	}
 private:
 	LRESULT OnInitMenuPopup(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/);
 	LRESULT OnUninitMenuPopup(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/);
@@ -113,9 +126,11 @@ private:
 	LRESULT OnDrawItem(UINT /*uMsg*/, WPARAM wParam, LPARAM lParam, BOOL& bHandled);
 	LRESULT OnMeasureItem(UINT /*uMsg*/, WPARAM wParam, LPARAM lParam, BOOL& bHandled);
 
+	BOOL CustomDrawMenuItem(LPDRAWITEMSTRUCT lpDis);
+	BOOL MeasureMenuItem(LPMEASUREITEMSTRUCT lpMis);
 
 	HRESULT LoadIconImages();
-	BOOL SetupMenuInfo(CMenuHandle& menu) const;
+	BOOL SetupMenuInfo(CMenuHandle& menu);
 	HRESULT BuildFolderMenu(LPSHELLFOLDER pFolder, HMENU hMenu);
 	void CleanUpMenuData(HMENU hMenu);
 

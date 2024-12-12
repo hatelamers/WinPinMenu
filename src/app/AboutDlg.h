@@ -3,18 +3,24 @@
 /////////////////////////////////////////////////////////////////////////////
 
 #pragma once
-#include "FileVersionInfo.h"
+#include <wtlx/FileVersionInfo.h>
+
+class CAboutDlg;
+using CUxAboutDialog = CUxModeWindow<CAboutDlg>;
 
 class CAboutDlg
 	: public CDialogImpl<CAboutDlg>
+	, public CUxAboutDialog
 	, public CWinDataExchange<CAboutDlg>
 {
 public:
 	enum { IDD = IDD_ABOUTBOX };
 
 	BEGIN_MSG_MAP(CAboutDlg)
+		CHAIN_MSG_MAP(CUxAboutDialog)
 		MESSAGE_HANDLER(WM_INITDIALOG, OnInitDialog)
 		COMMAND_ID_HANDLER(IDOK, OnCloseCmd)
+		COMMAND_ID_HANDLER(IDRETRY, OnCloseCmd)
 		COMMAND_ID_HANDLER(IDCANCEL, OnCloseCmd)
 	END_MSG_MAP()
 
@@ -33,7 +39,7 @@ private:
 	LRESULT OnCloseCmd(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 
 private:
-	CHyperLink m_lnkLicense;
-	CHyperLink m_lnkRelNotes;
+	CUxModeHyperLink m_lnkLicense;
+	CUxModeHyperLink m_lnkRelNotes;
 	CFileVersionInfo m_fvi;
 };

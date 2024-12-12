@@ -2,6 +2,7 @@
 # cmake --build build\Cmake-Debug-x64 --config Debug
 # cmake -Sbuildenv -Bbuild\Cmake-Debug-x86 -DCMAKE_BUILD_TYPE=Debug -T host=x64 -A Win32
 # cmake --build build\Cmake-Debug-x86 --config Debug
+# cmake -Sbuildenv -Bbuild\Cmake-Release-ARM64 -DCMAKE_BUILD_TYPE=Release -DSIGNER_ISSUER:STRING="<ISSUER_CN>" -T host=x64 -A ARM64
 # cmake -Sbuildenv -Bbuild\Cmake-Release-x64 -DCMAKE_BUILD_TYPE=Release -DSIGNER_CERT:STRING=<CERT_PATH> -DSIGNER_PASS:STRING=<CERT_PASSWORD>
 # cmake --build build\Cmake-Release-x64 --config Release --target WinPinMenu-package-inst
 
@@ -11,10 +12,14 @@ if(${CMAKE_VERSION} VERSION_LESS 3.12)
     cmake_policy(VERSION ${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION})
 endif()
 
+get_filename_component(WORKSPACE_ROOT ".." ABSOLUTE BASE_DIR "${CMAKE_CURRENT_LIST_DIR}")
+set(MAIN_TARGET_SOURCE_DIR "${WORKSPACE_ROOT}/src/app")
+set(MAIN_TARGET_RESOURCE_DIR "${MAIN_TARGET_SOURCE_DIR}/res")
+
 include("${CMAKE_CURRENT_LIST_DIR}/LocalBuild.cmake" OPTIONAL)
 
+file(READ "${MAIN_TARGET_SOURCE_DIR}/buildnumber.txt" BUILD_NUMBER)
 include("${CMAKE_CURRENT_LIST_DIR}/Product.cmake")
-file(READ "${CMAKE_CURRENT_LIST_DIR}/buildnumber.txt" BUILD_NUMBER)
 if(NOT ${BUILD_NUMBER})
     set(BUILD_NUMBER 1)
 endif()
@@ -35,14 +40,12 @@ set(CPACK_SINGLE_TARGET_SYSTEM ON)
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/TargetArch.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/InstallSetup.cmake)
 
-get_filename_component(WORKSPACE_ROOT ".." ABSOLUTE BASE_DIR "${CMAKE_CURRENT_LIST_DIR}")
 set(PRODUCT_LICENSE_FILE "${WORKSPACE_ROOT}/LICENSE")
 
 set(MAIN_TARGET_NAME ${PROJECT_NAME})
-set(MAIN_TARGET_SOURCE_DIR "${WORKSPACE_ROOT}/src/app")
-set(MAIN_TARGET_RESOURCE_DIR "${MAIN_TARGET_SOURCE_DIR}/res")
 
 configure_file("${MAIN_TARGET_SOURCE_DIR}/productmeta.h.in" "${MAIN_TARGET_SOURCE_DIR}/productmeta.h")
+configure_file("${MAIN_TARGET_SOURCE_DIR}/app.manifest.in" "${MAIN_TARGET_RESOURCE_DIR}/app.manifest")
 
 add_custom_target(${MAIN_TARGET_NAME} ALL)
 
@@ -53,6 +56,8 @@ add_custom_command(
         "${CMAKE_CURRENT_LIST_DIR}/${MAIN_TARGET_NAME}.sln"
         -t:restore
         -p:RestorePackagesConfig=true
+        -p:Configuration=$<CONFIG>
+        -p:Platform=${TARGET_ARCH_ID}
     COMMENT "Restoring NuGet packages"
 )
 
@@ -64,9 +69,9 @@ add_custom_command(
     COMMAND ${CMAKE_COMMAND}
 		-DBINARY_DIR=${CMAKE_BINARY_DIR}
 		-DSOURCE_DIR=${CMAKE_CURRENT_LIST_DIR}
-		-DMAIN_TARGET_SOURCE_DIR=${MAIN_TARGET_SOURCE_DIR}
+		-DTARGET_SOURCE_DIR=${MAIN_TARGET_SOURCE_DIR}
 		-DBUILD_TYPE=$<CONFIG>
-		-DMAIN_TARGET_NAME=${MAIN_TARGET_NAME}
+		-DTARGET_NAME=${MAIN_TARGET_NAME}
 		-P ${CMAKE_CURRENT_LIST_DIR}/cmake/PostBuild.cmake
     COMMENT "Performing post-build tasks ($<CONFIG>)"
 )
@@ -84,18 +89,12 @@ add_custom_command(
 
 add_dependencies(${MAIN_TARGET_NAME} ${MAIN_TARGET_NAME}-restore ${MAIN_TARGET_NAME}-vc)
 
-install(FILES ${PRODUCT_LICENSE_FILE} CONFIGURATIONS Release DESTINATION ${INSTALL_DOCDIR})
-install(PROGRAMS "${CMAKE_BINARY_DIR}/../$<CONFIG>-${TARGET_ARCH_ID}/${MAIN_TARGET_NAME}.exe" CONFIGURATIONS Release DESTINATION ${CMAKE_INSTALL_BINDIR})
+set(CPACK_INSTALLER_GENERATORS "ZIP" "INNOSETUP")
+set(CPACK_INNOSETUP_CUSTOM_INSTALL_INSTRUCTIONS
+    "bin/${MAIN_TARGET_NAME}.exe" "Source: \\\"bin\\\\${MAIN_TARGET_NAME}.exe\\\"\\; DestDir: \\\"{app}\\\\bin\\\"\\; Flags: restartreplace promptifolder")
+set(CPACK_INNOSETUP_MENU_LINKS "bin\\\\${MAIN_TARGET_NAME}.exe" "${PRODUCT_NAME}")
 
 include(${CMAKE_CURRENT_LIST_DIR}/cpack/Package.cmake)
 
-add_custom_command(
-    TARGET ${MAIN_TARGET_NAME}-package-inst POST_BUILD
-    COMMAND ${CMAKE_COMMAND}
-        -DSIGNER_ISSUER=${SIGNER_ISSUER}
-        -DSIGNER_CERT=${SIGNER_CERT}
-        -DSIGNER_PASS=${SIGNER_PASS}
-        -DTARGET="${CPACK_PACKAGE_DIRECTORY}/${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_SYSTEM_NAME}.exe"
-        -P ${CMAKE_CURRENT_LIST_DIR}/cmake/SignTool.cmake
-    COMMENT "Signing ${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_SYSTEM_NAME}"
-)
+install(FILES ${PRODUCT_LICENSE_FILE} CONFIGURATIONS Release DESTINATION ${INSTALL_DOCDIR})
+install(PROGRAMS "${CMAKE_BINARY_DIR}/../$<CONFIG>-${TARGET_ARCH_ID}/${MAIN_TARGET_NAME}.exe" CONFIGURATIONS Release DESTINATION ${CMAKE_INSTALL_BINDIR})

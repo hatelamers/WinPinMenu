@@ -45,7 +45,7 @@ jobs:
       env:
         CODESIGN_PW: ${{ secrets.CODESIGN_PW }}
     - name: Publish to GitHub
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         files: |
             distr/*.exe
@@ -57,5 +57,4 @@ jobs:
       if: always()
       continue-on-error: true
       run: |
-        del /q "$env:TEMP\signcert.txt" 2>nul
-        del /q "$env:TEMP\signcert.pfx" 2>nul
+        del "$env:TEMP\signcert.*"

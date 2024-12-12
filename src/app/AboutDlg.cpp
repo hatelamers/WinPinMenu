@@ -1,8 +1,8 @@
 // aboutdlg.cpp : implementation of the CAboutDlg class
 //
 /////////////////////////////////////////////////////////////////////////////
-
 #include "stdafx.h"
+
 #include "resource.h"
 #include "productmeta.h"
 
@@ -10,8 +10,9 @@
 
 LRESULT CAboutDlg::OnInitDialog(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/)
 {
+    ATLTRACE(_T(__FUNCTION__) _T("\n"));
+
     DoDataExchange(FALSE);
-    //m_lnkLicense.SetHyperLinkExtendedStyle(HLINK_COMMANDBUTTON, HLINK_COMMANDBUTTON);
     if (m_fvi.Open())
     {
         m_fvi.SetInfoDlgItemText(m_hWnd, IDC_TXT_PRODUCTNAME, SFI_PRODUCTNAME);
@@ -21,10 +22,6 @@ LRESULT CAboutDlg::OnInitDialog(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lPara
         m_fvi.SetInfoDlgItemText(m_hWnd, IDC_TXT_FILEVERSION, SFI_FILEVERSION);
         m_fvi.SetInfoDlgItemText(m_hWnd, IDC_TXT_COMPANYNAME, SFI_COMPANYNAME);
 
-        //LPTSTR lpValue(NULL);
-        //UINT uLen(0);
-        //if (m_fvi.GetStringFileInfo(SFI_LEGALTRADEMARKS, lpValue, &uLen))
-        //    m_lnkLicense.SetToolTipText(lpValue);
     }
     m_lnkLicense.SetHyperLink(PRODUCT_LICENSE_URL);
 
@@ -33,6 +30,7 @@ LRESULT CAboutDlg::OnInitDialog(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lPara
 #else
     m_lnkRelNotes.ShowWindow(SW_HIDE);
 #endif
+
     return TRUE;
 }
 
