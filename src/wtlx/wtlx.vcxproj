@@ -252,6 +252,7 @@
     <ClInclude Include="wtlx\taskbarautomation.h" />
     <ClInclude Include="wtlx\TaskBarList.h" />
     <ClInclude Include="wtlx\UxModeHyperLink.h" />
+    <ClInclude Include="wtlx\UxModePopupMenu.h" />
     <ClInclude Include="wtlx\uxthemehelper.h" />
   </ItemGroup>
   <ItemGroup>

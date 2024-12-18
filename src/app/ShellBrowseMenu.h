@@ -7,7 +7,7 @@
 #endif
 
 class CShellBrowseMenu
-	: public CUxModeMenuHelper<CShellBrowseMenu>
+	: public CUxModeMenuBase<CShellBrowseMenu>
 {
 public:
 	enum MessageID
@@ -60,7 +60,7 @@ public:
 	virtual ~CShellBrowseMenu() = default;
 
 	BEGIN_MSG_MAP(CShellBrowseMenu)
-		CHAIN_MSG_MAP(CUxModeMenuHelper<CShellBrowseMenu>)
+		CHAIN_MSG_MAP(CUxModeMenuBase<CShellBrowseMenu>)
 		MESSAGE_HANDLER(WM_MENURBUTTONUP, OnMenuRButtonUp)
 		MESSAGE_HANDLER(WM_RBUTTONUP, OnRButtonUp)
 		MESSAGE_HANDLER(WM_MENUCOMMAND, OnMenuCommand)
@@ -89,9 +89,10 @@ public:
 	void Bind(const ShellMenuController* controller)
 	{
 		ATLASSERT(controller);
+		auto init = NULL == m_controller;
 		m_controller = controller;
 		m_mnuTop.Attach(m_controller ? m_controller->GetTopHMenu() : NULL);
-		UxModeSetup();
+		UxModeSetup(init);
 		SetupMenuInfo(m_mnuTop);
 		if (!m_rootIDL.IsNull())
 		{
@@ -116,6 +117,8 @@ protected:
 	{
 		return m_controller ? m_controller->GetHWnd() : NULL;
 	}
+	HRESULT LoadMenuImages();
+
 private:
 	LRESULT OnInitMenuPopup(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/);
 	LRESULT OnUninitMenuPopup(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/);
@@ -126,10 +129,8 @@ private:
 	LRESULT OnDrawItem(UINT /*uMsg*/, WPARAM wParam, LPARAM lParam, BOOL& bHandled);
 	LRESULT OnMeasureItem(UINT /*uMsg*/, WPARAM wParam, LPARAM lParam, BOOL& bHandled);
 
-	BOOL CustomDrawMenuItem(LPDRAWITEMSTRUCT lpDis);
-	BOOL MeasureMenuItem(LPMEASUREITEMSTRUCT lpMis);
+	BOOL CustomDrawPopupMenuItem(LPDRAWITEMSTRUCT lpDis);
 
-	HRESULT LoadIconImages();
 	BOOL SetupMenuInfo(CMenuHandle& menu);
 	HRESULT BuildFolderMenu(LPSHELLFOLDER pFolder, HMENU hMenu);
 	void CleanUpMenuData(HMENU hMenu);
