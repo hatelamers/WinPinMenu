@@ -8,7 +8,7 @@
 CShellBrowseMenu::CShellBrowseMenu(const ShellMenuController* controller)
 	: m_controller(controller), m_isRendered(false), m_isCtxMenuShowing(false)
 {
-	LoadIconImages();
+	LoadMenuImages();
 }
 
 HRESULT CShellBrowseMenu::Rebuild()
@@ -57,7 +57,7 @@ BOOL CShellBrowseMenu::InvokeWithSelection(LPCTSTR strVerb) const
 
 void CShellBrowseMenu::UxModeUpdateColorSettings()
 {
-	CUxModeMenuHelper::UxModeUpdateColorSettings();
+	CUxModeMenuBase::UxModeUpdateColorSettings();
 	if (!uxTheme.IsInDarkMode())
 	{
 		m_menuColors.crHighlightBg = UXCOLOR_LIGHTER(m_menuColors.crHighlightBg, 0.3);
@@ -279,7 +279,7 @@ LRESULT CShellBrowseMenu::OnDrawItem(UINT, WPARAM /*wParam*/, LPARAM lParam, BOO
 	}
 
 	bHandled = TRUE;
-	return CustomDrawMenuItem(lpDis);
+	return CustomDrawPopupMenuItem(lpDis);
 }
 
 LRESULT CShellBrowseMenu::OnMeasureItem(UINT, WPARAM /*wParam*/, LPARAM lParam, BOOL& bHandled)
@@ -292,57 +292,31 @@ LRESULT CShellBrowseMenu::OnMeasureItem(UINT, WPARAM /*wParam*/, LPARAM lParam, 
 	}
 
 	bHandled = TRUE;
-	return MeasureMenuItem(lpMis);
+	auto pData = reinterpret_cast<LPSHELLMENUITEMDATA>(lpMis->itemData);
+	return MeasurePopupMenuItem(lpMis, pData ? (LPCTSTR)pData->caption : NULL);
 }
 
-BOOL CShellBrowseMenu::CustomDrawMenuItem(LPDRAWITEMSTRUCT lpDis)
+BOOL CShellBrowseMenu::CustomDrawPopupMenuItem(LPDRAWITEMSTRUCT lpDis)
 {
+	CustomDrawPopupMenuBackground(lpDis);
+	auto itemState = CustomDrawPopupMenuItemBackground(lpDis);
 
-	auto pData = (LPSHELLMENUITEMDATA)lpDis->itemData;
-
-	CDCHandle dc = lpDis->hDC;
-	RECT& rcItem = lpDis->rcItem;
-
-	CRect rcOverpaint(rcItem);
-	rcOverpaint.top -= 1;
-	rcOverpaint.bottom += 1;
-	m_menuTheme.DrawThemeBackground(dc, MENU_POPUPBACKGROUND, 0, rcOverpaint, NULL);
-
-	auto isDisabled = ODS_GRAYED == (lpDis->itemState & ODS_GRAYED);
-	auto isSelected = ODS_SELECTED == (lpDis->itemState & ODS_SELECTED);
-	auto isSeparator = 0 == pData->caption.GetLength();
-
-	auto itemState = isDisabled ? MPIF_DISABLED : MPI_NORMAL;
-	if (isSelected)
-		itemState = isDisabled ? MPI_DISABLEDHOT : MPI_HOT;
-	m_menuTheme.DrawThemeBackground(dc, MENU_POPUPITEM, itemState, &rcItem, NULL);
-
-	if (isSelected && !isDisabled)
-	{
-		CPen pen;
-		pen.CreatePen(PS_SOLID, 1, m_menuColors.crHihghlight);
-		auto oldPen = dc.SelectPen(pen);
-		auto oldBrush = dc.SelectBrush((HBRUSH)::GetStockObject(HOLLOW_BRUSH));
-		dc.Rectangle(&rcItem);
-		if (oldBrush)
-			dc.SelectBrush(oldBrush);
-		if (oldPen)
-			dc.SelectPen(oldPen);
-	}
-
-	CRect rc(rcItem);
+	CRect rc(lpDis->rcItem);
 	if (m_menuMetrics.sizeIcon.cx)
 	{
 		rc.left += m_menuMetrics.sizeIcon.cx + (m_menuMetrics.paddingIcon.cx * 2);
 	}
 
-	if (isSeparator)
+	auto pData = (LPSHELLMENUITEMDATA)lpDis->itemData;
+	CDCHandle dc = lpDis->hDC;
+
+	if (NULL == pData || 0 == pData->caption.GetLength())
 	{
 		m_menuTheme.DrawThemeBackground(dc, MENU_POPUPSEPARATOR, 0, rc, NULL);
 	}
 	else
 	{
-		auto isSubmenu = ::IsMenu((HMENU)(UINT_PTR)lpDis->itemID);
+		auto isDisabled = ODS_GRAYED == (lpDis->itemState & ODS_GRAYED);
 
 		if (-1 < pData->iconIndex && m_pImageList)
 		{
@@ -370,51 +344,30 @@ BOOL CShellBrowseMenu::CustomDrawMenuItem(LPDRAWITEMSTRUCT lpDis)
 		}
 		m_menuTheme.DrawThemeText(dc, MENU_POPUPITEM, itemState, pData->caption, -1, dwFlags, 0, rc);
 
-		if (isSubmenu)
+		if (::IsMenu((HMENU)(UINT_PTR)lpDis->itemID))
 		{
-			CustomDrawMenuArrow(dc, &rcItem, isDisabled);
+			CustomDrawMenuArrow(dc, &lpDis->rcItem, isDisabled);
 		}
 
-		dc.ExcludeClipRect(&rcItem);
+		dc.ExcludeClipRect(&lpDis->rcItem);
 	}
 	return TRUE;
 }
 
-BOOL CShellBrowseMenu::MeasureMenuItem(LPMEASUREITEMSTRUCT lpMis)
+HRESULT CShellBrowseMenu::LoadMenuImages()
 {
-	auto pData = (LPSHELLMENUITEMDATA)lpMis->itemData;
-
-	auto isSeparator = 0 == pData->caption.GetLength();
-	if (isSeparator)
+	auto result = S_FALSE;
+	if (!m_pImageList)
 	{
-		lpMis->itemHeight = ::GetSystemMetrics(SM_CYMENU) / 2;
-		lpMis->itemWidth = 0;
-	}
-	else
-	{
-		CWindowDC dc(GetOwnerHWND());
-		CRect rcText;
-		m_menuTheme.GetThemeTextExtent(dc, MENU_POPUPITEM, MPI_NORMAL, pData->caption, -1, DT_SINGLELINE | DT_LEFT | DT_VCENTER | DT_CALCRECT, NULL, rcText);
-
-		lpMis->itemHeight = m_menuMetrics.itemHeight;
-		lpMis->itemWidth = rcText.Width() + m_menuMetrics.paddingIcon.cx + m_menuMetrics.sizeMnuArrow.cx;
-		if (m_menuMetrics.sizeIcon.cx)
+		result = ::SHGetImageList(SHIL_SMALL, IID_IImageList, (void**)&m_pImageList);
+		if (SUCCEEDED(result) && m_pImageList)
 		{
-			lpMis->itemWidth += (m_menuMetrics.paddingText.cx * 2) + m_menuMetrics.sizeIcon.cx;
+			m_pImageList->GetIconSize((int*)&m_menuMetrics.sizeIcon.cx, (int*)&m_menuMetrics.sizeIcon.cy);
+			m_pImageList->GetIconSize((int*)&m_menuMetrics.sizeIcon.cx, (int*)&m_menuMetrics.sizeIcon.cy);
 		}
 	}
-
-	return TRUE;
-}
-
-HRESULT CShellBrowseMenu::LoadIconImages()
-{
-	auto result = ::SHGetImageList(SHIL_SMALL, IID_IImageList, (void**) &m_pImageList);
-	if (SUCCEEDED(result) && m_pImageList)
-	{
-		m_pImageList->GetIconSize((int*)&m_menuMetrics.sizeIcon.cx, (int*)&m_menuMetrics.sizeIcon.cy);
-		m_pImageList->GetIconSize((int*)&m_menuMetrics.sizeIcon.cx, (int*)&m_menuMetrics.sizeIcon.cy);
-	}
+	if (S_FALSE == result)
+		m_menuMetrics.sizeIcon.cx = m_menuMetrics.sizeIcon.cy = 16;
 	return result;
 }
 

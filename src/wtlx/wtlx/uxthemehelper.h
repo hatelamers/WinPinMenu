@@ -355,13 +355,19 @@ struct UxModeMenuMetrics
     NONCLIENTMETRICS metricsNC{ 0 };
 };
 
-template<class T>
 class CUxModeBase
 {
+public:
+    BEGIN_MSG_MAP(CUxModeBase)
+        MESSAGE_HANDLER(WM_THEMECHANGED, UxModeOnThemeChange)
+        MESSAGE_HANDLER(WM_DESTROY, UxModeOnDestroy)
+    END_MSG_MAP()
+
 protected:
 
-    virtual void UxModeSetup()
+    virtual void UxModeSetup(bool init = true)
     {
+        ATLTRACE(_T(__FUNCTION__) _T(" init=%d\n"), init);
         if (!m_menuTheme.IsThemeNull())
             m_menuTheme.CloseThemeData();
         auto hwnd = GetOwnerHWND();
@@ -375,14 +381,16 @@ protected:
     {
     }
 
+    virtual void UxModeCleanup()
+    {
+        ATLTRACE(_T(__FUNCTION__) _T("\n"));
+        if (!m_menuTheme.IsThemeNull())
+            m_menuTheme.CloseThemeData();
+    }
+
     virtual HWND GetOwnerHWND()
     {
         return NULL;
-    }
-
-    virtual T* GetThis()
-    {
-        return dynamic_cast<T*>(this);
     }
 
     LRESULT UxModeOnThemeChange(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& bHandled)
@@ -391,7 +399,7 @@ protected:
         if (m_lastModeWasDark != uxTheme.IsInDarkMode())
         {
             bHandled = TRUE;
-            UxModeSetup();
+            UxModeSetup(false);
             auto hwnd = GetOwnerHWND();
             if (::IsWindow(hwnd))
                 ::UpdateWindow(hwnd);
@@ -402,53 +410,60 @@ protected:
     LRESULT UxModeOnDestroy(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& bHandled)
     {
         bHandled = FALSE;
-        if (!m_menuTheme.IsThemeNull())
-            m_menuTheme.CloseThemeData();
-
+        UxModeCleanup();
         return 1;
     }
 
 protected:
+    bool m_uxModeInitialized{ false };
     bool m_lastModeWasDark{ false };
     CTheme m_menuTheme;
 };
 
 template<class T>
-class CUxModeMenuHelper
-    : public virtual CUxModeBase<T>
+class CUxModeMenuBase
+    : public CUxModeBase
 {
 public:
 
-    BEGIN_MSG_MAP(CUxModeMenuHelper)
-        MESSAGE_HANDLER(WM_THEMECHANGED, UxModeOnThemeChange)
-        MESSAGE_HANDLER(WM_DESTROY, UxModeOnDestroy)
+    BEGIN_MSG_MAP(CUxModeMenuBase)
+        CHAIN_MSG_MAP(CUxModeBase)
     END_MSG_MAP()
 
 protected:
-    virtual void UxModeSetup() override
+    T* GetThis()
     {
-        CBitmap bmpArrow;
-        BITMAP bm;
-        if (bmpArrow.LoadOEMBitmap(OBM_MNARROW) && bmpArrow.GetBitmap(bm))
-        {
-            m_menuMetrics.sizeMnuArrow.cx = bm.bmWidth;
-            m_menuMetrics.sizeMnuArrow.cy = bm.bmHeight;
-        }
+        return static_cast<T*>(this);
+    }
 
-        m_menuMetrics.metricsNC.cbSize = sizeof(NONCLIENTMETRICS);
-        if (::SystemParametersInfo(SPI_GETNONCLIENTMETRICS, m_menuMetrics.metricsNC.cbSize, &m_menuMetrics.metricsNC, 0))
+    virtual void UxModeSetup(bool init = true) override
+    {
+        ATLTRACE(_T(__FUNCTION__) _T("\n"));
+        if (init)
         {
-            m_menuMetrics.itemHeight = max(m_menuMetrics.metricsNC.iMenuHeight, ::abs(m_menuMetrics.metricsNC.lfMenuFont.lfHeight) + (m_menuMetrics.paddingText.cy * 2));
-            if (m_menuMetrics.sizeIcon.cy && m_menuMetrics.itemHeight < (m_menuMetrics.paddingIcon.cy * 2) + m_menuMetrics.sizeIcon.cy)
+            CBitmap bmpArrow;
+            BITMAP bm;
+            if (bmpArrow.LoadOEMBitmap(OBM_MNARROW) && bmpArrow.GetBitmap(bm))
             {
-                m_menuMetrics.itemHeight = (m_menuMetrics.paddingIcon.cy * 2) + m_menuMetrics.sizeIcon.cy;
+                m_menuMetrics.sizeMnuArrow.cx = bm.bmWidth;
+                m_menuMetrics.sizeMnuArrow.cy = bm.bmHeight;
             }
-            if (m_menuMetrics.paddingIcon.cy > m_menuMetrics.itemHeight - m_menuMetrics.sizeIcon.cy - m_menuMetrics.paddingIcon.cy)
+
+            m_menuMetrics.metricsNC.cbSize = sizeof(NONCLIENTMETRICS);
+            if (::SystemParametersInfo(SPI_GETNONCLIENTMETRICS, m_menuMetrics.metricsNC.cbSize, &m_menuMetrics.metricsNC, 0))
             {
-                m_menuMetrics.paddingIcon.cy = (m_menuMetrics.itemHeight - m_menuMetrics.sizeIcon.cy) / 2;
+                m_menuMetrics.itemHeight = max(m_menuMetrics.metricsNC.iMenuHeight, ::abs(m_menuMetrics.metricsNC.lfMenuFont.lfHeight) + (m_menuMetrics.paddingText.cy * 2));
+                if (m_menuMetrics.sizeIcon.cy && m_menuMetrics.itemHeight < (m_menuMetrics.paddingIcon.cy * 2) + m_menuMetrics.sizeIcon.cy)
+                {
+                    m_menuMetrics.itemHeight = (m_menuMetrics.paddingIcon.cy * 2) + m_menuMetrics.sizeIcon.cy;
+                }
+                if (m_menuMetrics.paddingIcon.cy > m_menuMetrics.itemHeight - m_menuMetrics.sizeIcon.cy - m_menuMetrics.paddingIcon.cy)
+                {
+                    m_menuMetrics.paddingIcon.cy = (m_menuMetrics.itemHeight - m_menuMetrics.sizeIcon.cy) / 2;
+                }
             }
         }
-        CUxModeBase<T>::UxModeSetup();
+        CUxModeBase::UxModeSetup(init);
         if (!m_menuTheme.IsThemeNull())
         {
             HBITMAP hBmp = NULL;
@@ -474,6 +489,85 @@ protected:
             mi.fMask |= MIM_BACKGROUND;
             mi.hbrBack = m_menuColors.brushBg;
         }
+    }
+
+    BOOL MeasurePopupMenuItem(LPMEASUREITEMSTRUCT lpMis, LPCTSTR caption)
+    {
+        auto isSeparator = NULL == caption || 0 == ::lstrlen(caption);
+        if (isSeparator)
+        {
+            lpMis->itemHeight = ::GetSystemMetrics(SM_CYMENU) / 2;
+            lpMis->itemWidth = 0;
+        }
+        else
+        {
+            CWindowDC dc(GetOwnerHWND());
+            CRect rcText;
+            m_menuTheme.GetThemeTextExtent(dc, MENU_POPUPITEM, MPI_NORMAL, caption, -1
+                , DT_SINGLELINE | DT_LEFT | DT_VCENTER | DT_EXPANDTABS| DT_CALCRECT, NULL, rcText);
+
+            lpMis->itemHeight = m_menuMetrics.itemHeight;
+            lpMis->itemWidth = rcText.Width() + m_menuMetrics.paddingIcon.cx + m_menuMetrics.sizeMnuArrow.cx;
+            if (m_menuMetrics.sizeIcon.cx)
+            {
+                lpMis->itemWidth += (m_menuMetrics.paddingText.cx * 2) + m_menuMetrics.sizeIcon.cx;
+            }
+        }
+
+        return TRUE;
+    }
+
+    HRESULT CustomDrawPopupMenuBackground(LPDRAWITEMSTRUCT lpDis)
+    {
+        CRect rcOverpaint(lpDis->rcItem);
+        rcOverpaint.top -= 1;
+        rcOverpaint.bottom += 1;
+        return m_menuTheme.DrawThemeBackground(lpDis->hDC, MENU_POPUPBACKGROUND, 0, rcOverpaint, NULL);
+    }
+
+    POPUPITEMSTATES CustomDrawPopupMenuItemBackground(LPDRAWITEMSTRUCT lpDis)
+    {
+        CDCHandle dc = lpDis->hDC;
+
+        auto isDisabled = ODS_GRAYED == (lpDis->itemState & ODS_GRAYED);
+        auto isSelected = ODS_SELECTED == (lpDis->itemState & ODS_SELECTED);
+
+        auto result = isDisabled ? MPI_DISABLED : MPI_NORMAL;
+        if (isSelected)
+            result = isDisabled ? MPI_DISABLEDHOT : MPI_HOT;
+        m_menuTheme.DrawThemeBackground(dc, MENU_POPUPITEM, result, &lpDis->rcItem, NULL);
+
+        if (isSelected && !isDisabled)
+        {
+            CPen pen;
+            pen.CreatePen(PS_SOLID, 1, m_menuColors.crHihghlight);
+            auto oldPen = dc.SelectPen(pen);
+            auto oldBrush = dc.SelectBrush((HBRUSH)::GetStockObject(HOLLOW_BRUSH));
+            dc.Rectangle(&lpDis->rcItem);
+            if (oldBrush)
+                dc.SelectBrush(oldBrush);
+            if (oldPen)
+                dc.SelectPen(oldPen);
+        }
+        return result;
+    }
+
+    HRESULT CustomDrawPopupMenuCheck(LPDRAWITEMSTRUCT lpDis)
+    {
+        auto result = S_FALSE;
+        if (ODS_CHECKED == (ODS_CHECKED & lpDis->itemState))
+        {
+            auto isDisabled = ODS_GRAYED == (lpDis->itemState & ODS_GRAYED);
+            CRect rcCheck(lpDis->rcItem);
+            rcCheck.left += m_menuMetrics.paddingIcon.cx;
+            rcCheck.top += m_menuMetrics.paddingIcon.cy;
+            rcCheck.right = rcCheck.left + m_menuMetrics.sizeIcon.cx;
+            rcCheck.bottom = rcCheck.top + m_menuMetrics.sizeIcon.cy + m_menuMetrics.paddingIcon.cy;
+
+            result = m_menuTheme.DrawThemeBackground(lpDis->hDC, MENU_POPUPCHECKBACKGROUND, isDisabled ? MCB_DISABLED : MCB_NORMAL, rcCheck, NULL);
+            result = m_menuTheme.DrawThemeBackground(lpDis->hDC, MENU_POPUPCHECK, isDisabled ? MC_CHECKMARKDISABLED : MC_CHECKMARKNORMAL, rcCheck, NULL);
+        }
+        return result;
     }
 
     BOOL CustomDrawMenuArrow(HDC hdcItem, LPRECT rcItem, bool isDisabled)
@@ -610,23 +704,40 @@ public:
 
     static constexpr bool value = std::is_same<decltype(test<T>(0)), yes>::value;
 };
+template<typename T>
+struct is_prop_page
+{
+private:
+    typedef std::true_type yes;
+    typedef std::false_type no;
+
+    template<typename U> static auto test(int) -> decltype(std::declval<U>().GetPropertySheet() != nullptr, yes());
+
+    template<typename> static no test(...);
+
+public:
+
+    static constexpr bool value = std::is_same<decltype(test<T>(0)), yes>::value;
+};
 enum class UxModeWindowType
 {
-    GENERIC, DIALOG, PROP_SHEET
+    GENERIC, DIALOG, PROP_SHEET, PROP_PAGE
 };
 
 #define UXPROP_LISTVIEWPROC _T("UxModeListViewProc")
 
-template<class T>
+template<class T, class TBase = CUxModeBase>
 class CUxModeWindow
-    : public virtual CUxModeBase<T>
+    : public TBase
 {
 public:
+    using ThisUxWindowClass = CUxModeWindow<T, TBase>;
 
-    BEGIN_MSG_MAP(CUxModeWindow)
+    BEGIN_MSG_MAP(ThisUxWindowClass)
         switch (UxWindowType)
         {
         case UxModeWindowType::DIALOG:
+        case UxModeWindowType::PROP_PAGE:
             MESSAGE_HANDLER(WM_INITDIALOG, UxModeOnInitDialog)
             break;
         default:
@@ -635,13 +746,16 @@ public:
         }
         MESSAGE_HANDLER(WM_CTLCOLORDLG, UxModeOnCtlColorDlg)
         MESSAGE_HANDLER(WM_CTLCOLORSTATIC, UxModeOnCtlColorDlg)
+        MESSAGE_HANDLER(WM_CTLCOLOREDIT, UxModeOnCtlColorDlg)
         MESSAGE_HANDLER(WM_SETTINGCHANGE, UxModeOnSettingChange)
-        MESSAGE_HANDLER(WM_THEMECHANGED, UxModeOnThemeChange)
         MESSAGE_HANDLER(WM_NCPAINT, UxModeOnNcPaint)
         MESSAGE_HANDLER(WM_NCACTIVATE, UxModeOnNcPaint)
         MESSAGE_HANDLER(WM_UAHDRAWMENU, UxModeOnUahDrawMenu)
         MESSAGE_HANDLER(WM_UAHDRAWMENUITEM, UxModeOnUahDrawMenuItem)
-        MESSAGE_HANDLER(WM_DESTROY, UxModeOnDestroy)
+#ifdef UXMODE_SUPPORT_TABCONTROL
+        MESSAGE_HANDLER(WM_DRAWITEM, UxModeOnDrawItem)
+#endif // UXMODE_SUPPORT_TABCONTROL
+        CHAIN_MSG_MAP(TBase)
 #ifdef UXMODE_SUPPORT_LISTVIEW
 #ifdef UXMODE_CUSTOMDRAW_LISTVIEW_GROUPS
 #pragma warning( push )
@@ -711,30 +825,55 @@ protected:
         return GetThis()->m_hWnd;
     }
 
-    virtual T* GetThis() override
+    T* GetThis()
     {
         return static_cast<T*>(this);
     }
 
-    virtual void UxModeSetup() override
+    virtual bool UsingSecondaryBgColor(HWND hWnd)
     {
-        ATLTRACE(_T(__FUNCTION__) _T(" WindowType=%d IsAppThemed=%d IsThemeActive=%d bgColor=%x\n"), UxWindowType, ::IsAppThemed(), ::IsThemeActive()
-            , uxTheme.GetSysColorValue(CUxTheme::UIColorType::Background));
+        return UxModeWindowType::DIALOG == UxWindowType || (hWnd == GetOwnerHWND() && UxModeWindowType::PROP_SHEET == UxWindowType);
+    }
+
+    virtual void UxModeCleanup()
+    {
+        TBase::UxModeCleanup();
+#ifdef UXMODE_SUPPORT_TABCONTROL
+        if (!m_tabTheme.IsThemeNull())
+        {
+            m_tabTheme.CloseThemeData();
+        }
+#endif // UXMODE_SUPPORT_TABCONTROL
+    }
+
+    virtual void UxModeSetup(bool init = true) override
+    {
 
         auto isDark = uxTheme.IsInDarkMode();
+        m_crBgSecond = isDark ? UXCOLOR_LIGHTER(uxTheme.GetSysColorValue(CUxTheme::UIColorType::Background), 0.25) : ::GetSysColor(COLOR_BTNFACE);
+        m_crBg = isDark ? uxTheme.GetSysColorValue(CUxTheme::UIColorType::Background) : ::GetSysColor(COLOR_WINDOW);
+        ATLTRACE(_T(__FUNCTION__) _T(" WindowType=%d IsAppThemed=%d IsThemeActive=%d bgColor=%x\n"), UxWindowType, ::IsAppThemed(), ::IsThemeActive()
+            , m_crBg);
         if (isDark && m_lastModeWasDark != isDark)
         {
             if (!m_brushBg.IsNull())
                 m_brushBg.DeleteObject();
-            m_brushBg.CreateSolidBrush(uxTheme.GetSysColorValue(CUxTheme::UIColorType::Background));
+            m_brushBg.CreateSolidBrush(m_crBg);
+            if (!m_brushBgSecond.IsNull())
+                m_brushBgSecond.DeleteObject();
+            m_brushBgSecond.CreateSolidBrush(m_crBgSecond);
         }
 
         m_lastModeWasDark = isDark;
 
         auto pSelf = GetThis();
-        if (!m_initialized)
+        if (!m_uxModeInitialized)
         {
-            uxTheme.AllowDarkModeForWindow(pSelf->m_hWnd, true);
+#ifdef UXMODE_SUPPORT_TABCONTROL
+            m_tabTheme.OpenThemeData(pSelf->m_hWnd, VSCLASS_TAB);
+#endif // UXMODE_SUPPORT_TABCONTROL
+
+                uxTheme.AllowDarkModeForWindow(pSelf->m_hWnd, true);
             MENUBARINFO mbi = { sizeof(mbi) };
             m_hasMenuBar = ::GetMenuBarInfo(pSelf->m_hWnd, OBJID_MENU, 0, &mbi);
 #ifdef UXMODE_SUPPORT_SCROLLBAR
@@ -743,7 +882,7 @@ protected:
         }
         uxTheme.SwitchWindowDarkMode(pSelf->m_hWnd, isDark);
 
-        CUxModeBase<T>::UxModeSetup();
+        TBase::UxModeSetup(init);
 
         ::EnumChildWindows(pSelf->m_hWnd, [](HWND hwnd, LPARAM lParam) -> BOOL
             {
@@ -751,13 +890,27 @@ protected:
                 CString str;
                 ::GetClassName(hwnd, str.GetBufferSetLength(MAX_PATH), MAX_PATH);
                 str.ReleaseBuffer();
-                if (_T("Button") == str || _T("Edit") == str)
+                auto dwStyle = ::GetWindowLongPtr(hwnd, GWL_STYLE);
+                LPCWSTR strTheme = NULL;
+                if (_T("Button") == str)
                 {
-                    pParent->SetUxModeForThemedControl(hwnd, L"Explorer");
+                    auto isCheck = BS_DEFPUSHBUTTON < ((BS_CHECKBOX | BS_AUTOCHECKBOX | BS_3STATE | BS_AUTO3STATE | BS_RADIOBUTTON | BS_AUTORADIOBUTTON) & dwStyle);
+                    if (isCheck)
+                    {
+                        pParent->SetUxModeForCheckbox(hwnd);
+                    }
+                    else
+                    {
+                        strTheme = L"Explorer";
+                    }
+                }
+                else if (_T("Edit") == str)
+                {
+                    strTheme = L"Explorer";
                 }
                 else if (_T("ComboBox") == str)
                 {
-                    pParent->SetUxModeForThemedControl(hwnd, L"CFD");
+                    strTheme = L"CFD";
                 }
 #ifdef UXMODE_SUPPORT_LISTVIEW
                 else if (_T("SysListView32") == str)
@@ -774,7 +927,7 @@ protected:
 #ifdef UXMODE_SUPPORT_TABCONTROL
                 else if (_T("SysTabControl32") == str)
                 {
-                    pParent->SetUxModeForThemedControl(hwnd, L"DarkMode_Explorer");
+                    pParent->SetUxModeForTabControl(hwnd);
                 }
 #endif // UXMODE_SUPPORT_TABCONTROL
                 else
@@ -782,25 +935,49 @@ protected:
                     ::SendMessage(hwnd, WM_THEMECHANGED, 0, 0);
                 }
 
+                if (strTheme)
+                    pParent->SetUxModeForThemedControl(hwnd, strTheme);
+
                 return TRUE;
             }, reinterpret_cast<LPARAM>(this));
 
-        if (!m_initialized)
+        if (!m_uxModeInitialized)
             pSelf->SendMessage(WM_THEMECHANGED);
 
-        m_initialized = true;
+        m_uxModeInitialized = true;
     }
 
     bool SetUxModeForThemedControl(HWND hWnd, LPCWSTR strTheme, LPCWSTR strSublist = NULL, bool force = false) const
     {
         auto r = uxTheme.AllowDarkModeForWindow(hWnd, uxTheme.IsInDarkMode());
-        auto hr = !force && m_initialized ? S_FALSE : ::SetWindowTheme(hWnd, strTheme, strSublist);
+        auto hr = !force && m_uxModeInitialized ? S_FALSE : ::SetWindowTheme(hWnd, strTheme, strSublist);
         if (S_FALSE == hr)
         {
             ::SendMessage(hWnd, WM_THEMECHANGED, 0, 0);
         }
         return r && SUCCEEDED(hr);
     }
+
+    bool SetUxModeForCheckbox(HWND hWnd)
+    {
+        auto isDark = uxTheme.IsInDarkMode();
+        // ugly but I don't feel like owner drawing this one too
+        if (isDark)
+        {
+            CWindow wnd(hWnd);
+            wnd.ModifyStyle(0, BS_FLAT);
+        }
+        return SetUxModeForThemedControl(hWnd, isDark ? L"" : VSCLASS_BUTTONSTYLE, isDark ? L"" : VSCLASS_BUTTON, true);
+    }
+
+#ifdef UXMODE_SUPPORT_TABCONTROL
+    bool SetUxModeForTabControl(HWND hWnd)
+    {
+        auto isDark = uxTheme.IsInDarkMode();
+        CWindow win(hWnd);
+        return TRUE == win.ModifyStyle(isDark ? 0 : TCS_OWNERDRAWFIXED, isDark ? TCS_OWNERDRAWFIXED : 0);
+    }
+#endif // UXMODE_SUPPORT_TABCONTROL
 
 #ifdef UXMODE_SUPPORT_PROGRESSBAR
     bool SetUxModeForProgressBar(HWND hWnd)
@@ -812,7 +989,7 @@ protected:
             ::SendMessage(hWnd, PBM_SETBKCOLOR, 0, UXCOLOR_LIGHTER(uxTheme.GetSysColorValue(CUxTheme::UIColorType::Background), 0.18));
         }
         else {
-            hr = ::SetWindowTheme(hWnd, VSCLASS_PROGRESS, NULL);
+            hr = ::SetWindowTheme(hWnd, VSCLASS_PROGRESSSTYLE, VSCLASS_PROGRESS);
         }
         return SUCCEEDED(hr);
     }
@@ -957,6 +1134,126 @@ protected:
         return FALSE;
     }
 
+#ifdef UXMODE_SUPPORT_TABCONTROL
+    BOOL UxModeCustomDrawTabItem(LPDRAWITEMSTRUCT lpDis)
+    {
+        if (0 > lpDis->itemID)
+            return FALSE;
+
+        BOOL result = TRUE;
+
+        CString caption;
+        TCITEM tci;
+        ZeroMemory(&tci, sizeof(TCITEM));
+        tci.mask = TCIF_TEXT | TCIF_IMAGE | TCIF_STATE;
+        tci.dwStateMask = TCIS_HIGHLIGHTED;
+        tci.pszText = caption.GetBufferSetLength(MAX_PATH);
+        tci.cchTextMax = MAX_PATH;
+        result = TabCtrl_GetItem(lpDis->hwndItem, lpDis->itemID, &tci);
+        caption.ReleaseBuffer();
+        if (!result)
+        {
+            return result;
+        }
+        
+        auto cItems = TabCtrl_GetItemCount(lpDis->hwndItem);
+
+        auto isDisabled = ODS_DISABLED == (ODS_DISABLED & lpDis->itemState) || ODS_GRAYED == (ODS_GRAYED & lpDis->itemState);
+        auto isSelected = ODS_SELECTED == (ODS_SELECTED & lpDis->itemState);
+        auto isDark = uxTheme.IsInDarkMode();
+
+        CDCHandle dc(lpDis->hDC);
+        CRect rcItem(lpDis->rcItem);
+        CRect rcFullItem(lpDis->rcItem);
+        if (isSelected)
+        {
+            rcFullItem.left += 2;
+            rcFullItem.right -= 1;
+            //rcFullItem.bottom -= 1;
+        }
+        else
+        {
+            rcFullItem.InflateRect(2, 2);
+        }
+        
+        CRect rcBg(rcFullItem);
+        if (isSelected)
+        {
+            rcBg.left += 2;
+        }
+        else
+        {
+            rcBg.top += 2;
+        }
+
+        auto crBg = m_crBgSecond;
+        if (isDark)
+        {
+            auto isLastTab = lpDis->itemID == (UINT)cItems - 1;
+            CRect rcWnd;
+            ::GetWindowRect(lpDis->hwndItem, rcWnd);
+            ::ScreenToClient(lpDis->hwndItem, &rcWnd.BottomRight());
+            ::ScreenToClient(lpDis->hwndItem, &rcWnd.TopLeft());
+
+            CRect rcCtlBg(rcItem);
+            rcCtlBg.top = rcWnd.top;
+            if (isLastTab)
+            {
+                rcCtlBg.right = rcWnd.right;
+                rcCtlBg.bottom += 1;
+            }
+            else
+            {
+                rcCtlBg.bottom = rcCtlBg.top + 2;
+                if (0 == lpDis->itemID)
+                {
+                    rcCtlBg.left = rcWnd.left;
+                    if (isSelected)
+                    {
+                        rcCtlBg.left += 2;
+                    }
+                }
+            }
+            //ATLTRACE(_T(__FUNCTION__) _T(" l=%d, t=%d, r=%d, b=%d\n"), rcCtlBg.left, rcCtlBg.top, rcCtlBg.right, rcCtlBg.bottom);
+            dc.FillSolidRect(rcCtlBg, crBg);
+        }
+
+        crBg = isSelected ? m_crBg : m_crBgSecond;
+        dc.FillSolidRect(rcBg, crBg);
+
+        DWORD dwFlags = DT_CENTER | DT_SINGLELINE | DT_VCENTER | DT_END_ELLIPSIS;
+        if (ODS_NOACCEL == (ODS_NOACCEL & lpDis->itemState)) {
+            dwFlags |= DT_HIDEPREFIX;
+        }
+        DTTOPTS opts = { sizeof(opts), DTT_TEXTCOLOR};
+        if (isDark)
+        {
+            opts.crText = uxTheme.GetSysColorValue(CUxTheme::UIColorType::Foreground);
+            if (isDisabled)
+                opts.crText = UXCOLOR_DARKER(opts.crText, 0.3);
+        }
+        else
+        {
+            opts.crText = isDisabled ? ::GetSysColor(COLOR_GRAYTEXT) : ::GetSysColor(COLOR_BTNTEXT);
+        }
+        //m_tabTheme.GetThemeColor(TABP_TABITEM, isDisabled ? TIS_DISABLED : TIS_NORMAL, TMT_BTNTEXT, &opts.crText);
+        m_tabTheme.DrawThemeTextEx(dc, TABP_TABITEM, TIS_NORMAL, caption, -1, dwFlags, rcItem, &opts);
+
+        //CRect rcClip(rcFullItem);
+        //if (isSelected)
+        //{
+        //    rcClip.left -= 3;
+        //    rcClip.right += 3;
+        //}
+        //else
+        //{
+        //    rcClip.top += 2;
+        //}
+        //dc.ExcludeClipRect(rcClip);
+        return result;
+    }
+#endif // UXMODE_SUPPORT_TABCONTROL
+
 #ifdef UXMODE_SUPPORT_LISTVIEW
 #ifdef UXMODE_CUSTOMDRAW_LISTVIEW_GROUPS
     LRESULT UxModeCustomDrawListView(LPNMLVCUSTOMDRAW pNMLVCD)
@@ -1063,18 +1360,27 @@ private:
             bHandled = TRUE;
 
             CWindow wnd(reinterpret_cast<HWND>(lParam));
+            auto useSecondBg = UsingSecondaryBgColor(wnd.m_hWnd);
 
             CDCHandle dc(reinterpret_cast<HDC>(wParam));
-            dc.SetBkColor(uxTheme.GetSysColorValue(CUxTheme::UIColorType::Background));
+            dc.SetBkColor(useSecondBg ? m_crBgSecond : m_crBg);
             dc.SetTextColor(uxTheme.GetSysColorValue(CUxTheme::UIColorType::Foreground));
 
-            if (BS_GROUPBOX == (BS_GROUPBOX & wnd.GetWindowLongPtr(GWL_STYLE)))
+            CString strClass;
+            ::GetClassName(wnd, strClass.GetBufferSetLength(MAX_PATH), MAX_PATH);
+            strClass.ReleaseBuffer();
+            if (_T("Button") == strClass)
             {
-                UxModeDrawGroupBox(wnd, dc);
+                auto dwStyle = wnd.GetWindowLongPtr(GWL_STYLE);
+                if (BS_GROUPBOX == (BS_GROUPBOX & dwStyle))
+                {
+                    UxModeDrawGroupBox(wnd, dc);
+                }
             }
-            return reinterpret_cast<LONG_PTR>(WS_EX_TRANSPARENT == (WS_EX_TRANSPARENT & wnd.GetWindowLongPtr(GWL_EXSTYLE))
-                ? ::GetStockObject(HOLLOW_BRUSH)
-                : m_brushBg.m_hBrush);
+            //return reinterpret_cast<LONG_PTR>(WS_EX_TRANSPARENT == (WS_EX_TRANSPARENT & wnd.GetWindowLongPtr(GWL_EXSTYLE))
+            //    ? ::GetStockObject(HOLLOW_BRUSH)
+            //    : m_brushBg.m_hBrush);
+            return reinterpret_cast<LONG_PTR>(useSecondBg ? m_brushBgSecond.m_hBrush : m_brushBg.m_hBrush);
         }
         return FALSE;
     }
@@ -1121,6 +1427,24 @@ private:
         return FALSE;
     }
 
+#ifdef UXMODE_SUPPORT_TABCONTROL
+    LRESULT UxModeOnDrawItem(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM lParam, BOOL& bHandled)
+    {
+        bHandled = FALSE;
+        auto lpDis = reinterpret_cast<LPDRAWITEMSTRUCT>(lParam);
+        if (NULL != lpDis || ODT_TAB == lpDis->CtlType)
+        {
+            auto result = UxModeCustomDrawTabItem(lpDis);
+            if (result)
+            {
+                bHandled = TRUE;
+                return result;
+            }
+        }
+        return FALSE;
+    }
+#endif // UXMODE_SUPPORT_TABCONTROL
+
 #ifdef UXMODE_CUSTOMDRAW_LISTVIEW_GROUPS
     LRESULT UxModeOnCustomDraw(int /*idCtrl*/, LPNMHDR pnmh, BOOL& bHandled)
     {
@@ -1141,7 +1465,7 @@ private:
         }
         return CDRF_DODEFAULT;
     }
-#endif
+#endif // UXMODE_CUSTOMDRAW_LISTVIEW_GROUPS
 
     LRESULT UxModeOnSettingChange(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM lParam, BOOL& bHandled)
     {
@@ -1155,10 +1479,15 @@ private:
     }
 
 protected:
-    bool m_initialized{ false };
     bool m_hasMenuBar{ false };
+    COLORREF m_crBgSecond;
+    CBrush m_brushBgSecond;
+    COLORREF m_crBg;
     CBrush m_brushBg;
+#ifdef UXMODE_SUPPORT_TABCONTROL
+    CTheme m_tabTheme;
+#endif // UXMODE_SUPPORT_TABCONTROL
 };
 
-template<class T>
-UxModeWindowType CUxModeWindow<T>::UxWindowType = (is_dialog<T>::value ? UxModeWindowType::DIALOG : (is_prop_sheet<T>::value ? UxModeWindowType::PROP_SHEET : UxModeWindowType::GENERIC));
+template<class T, class TBase>
+UxModeWindowType CUxModeWindow<T,TBase>::UxWindowType = is_prop_page<T>::value ? UxModeWindowType::PROP_PAGE : (is_dialog<T>::value ? UxModeWindowType::DIALOG : (is_prop_sheet<T>::value ? UxModeWindowType::PROP_SHEET : UxModeWindowType::GENERIC));

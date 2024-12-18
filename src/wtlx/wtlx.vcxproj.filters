@@ -24,6 +24,45 @@
     <ClInclude Include="targetver.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="wtlx\CoolContextMenu.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="wtlx\dialogresizeex.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="wtlx\Draw.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="wtlx\FileVersionInfo.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="wtlx\formattools.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="wtlx\IatHook.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="wtlx\NotifyTrayIcon.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="wtlx\PictureCtrl.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="wtlx\taskbarautomation.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="wtlx\TaskBarList.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="wtlx\UxModeHyperLink.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="wtlx\uxthemehelper.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="wtlx\UxModePopupMenu.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
